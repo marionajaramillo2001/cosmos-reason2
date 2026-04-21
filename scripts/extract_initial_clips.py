@@ -7,17 +7,35 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
+import os
 from pathlib import Path
 
 from agibot_planning_common import read_jsonl, write_jsonl
 
 
-def extract_clip(video_path: Path, out_path: Path, seconds: float, fps: float, overwrite: bool) -> None:
+def resolve_ffmpeg() -> str:
+    explicit = os.environ.get("FFMPEG_BINARY") or os.environ.get("IMAGEIO_FFMPEG_EXE")
+    if explicit:
+        return explicit
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return ffmpeg
+    try:
+        import imageio_ffmpeg
+    except ImportError:
+        raise SystemExit(
+            "ffmpeg is required. Load an ffmpeg module, set FFMPEG_BINARY, "
+            "or install imageio-ffmpeg with `uv pip install imageio-ffmpeg`."
+        ) from None
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def extract_clip(video_path: Path, out_path: Path, seconds: float, fps: float, overwrite: bool, ffmpeg: str) -> None:
     if out_path.exists() and not overwrite:
         return
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "ffmpeg",
+        ffmpeg,
         "-y" if overwrite else "-n",
         "-ss",
         "0",
@@ -47,8 +65,8 @@ def main() -> None:
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    if shutil.which("ffmpeg") is None:
-        raise SystemExit("ffmpeg is required. Install it on the cluster before extracting clips.")
+    ffmpeg = resolve_ffmpeg()
+    print(f"Using ffmpeg: {ffmpeg}")
 
     rows = read_jsonl(args.manifest.expanduser())
     updated = []
@@ -63,7 +81,7 @@ def main() -> None:
             updated.append(row)
             continue
         out_path = args.out_dir.expanduser() / f"{row['episode_id']}_initial.mp4"
-        extract_clip(video_path, out_path, args.seconds, args.fps, args.overwrite)
+        extract_clip(video_path, out_path, args.seconds, args.fps, args.overwrite, ffmpeg)
         row["initial_video"] = str(out_path)
         row["initial_clip_seconds"] = args.seconds
         row["initial_clip_fps"] = args.fps
