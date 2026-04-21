@@ -55,6 +55,24 @@ uvx hf auth whoami
 
 Do not use the standalone `hf` installer unless `uvx hf` fails. On Explorer, that installer may be killed during its pip upgrade step on login nodes.
 
+For the first AgiBot subset, do not rely on `git lfs`; Explorer may not provide it. Use `uvx hf download` to fetch a single archive:
+
+```bash
+uvx hf download agibot-world/AgiBotWorld2026 \
+  --repo-type dataset \
+  --include "ImitationLearning/CommercialSpaces/task_3401/399093_399454.tar.gz" \
+  --local-dir "$AGIBOT_ROOT"
+```
+
+Then inspect and extract:
+
+```bash
+cd "$AGIBOT_ROOT"
+tar -tzf ImitationLearning/CommercialSpaces/task_3401/399093_399454.tar.gz | head -50
+mkdir -p task_3401_sample
+tar -xzf ImitationLearning/CommercialSpaces/task_3401/399093_399454.tar.gz -C task_3401_sample
+```
+
 ## Local Prep
 
 Inspect the downloaded metadata:

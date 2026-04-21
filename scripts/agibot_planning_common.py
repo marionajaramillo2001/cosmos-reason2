@@ -23,6 +23,7 @@ TEXT_FIELDS = (
     "language_instruction",
     "instruction",
     "instruction_text",
+    "comment",
     "description",
     "caption",
     "label",
@@ -121,6 +122,9 @@ def first_text(record: dict[str, Any]) -> str:
         return clean_text(value)
     if value is not None:
         return clean_text(str(value))
+    frame_detail = record.get("frame_detail")
+    if isinstance(frame_detail, dict):
+        return first_text(frame_detail)
     return ""
 
 
@@ -176,6 +180,16 @@ def sort_segment_entries(entries: Any) -> list[Any]:
             return (1, 0)
 
     return sorted(items, key=sort_key)
+
+
+def key_frame_entries(entries: Any) -> list[Any]:
+    if isinstance(entries, dict):
+        out = []
+        for key in ("dual", "single"):
+            out.extend(as_list(entries.get(key)))
+        if out:
+            return out
+    return as_list(entries)
 
 
 def lookup_by_episode(mapping_or_list: Any, episode_id: str) -> Any:
@@ -249,7 +263,7 @@ def extract_task_frames(info: dict[str, Any], annotations: dict[str, Any], episo
         if entries is None:
             continue
         frames = []
-        for entry in sort_segment_entries(entries):
+        for entry in sort_segment_entries(key_frame_entries(entries)):
             if not isinstance(entry, dict):
                 continue
             frame_type = str(entry.get("frame_type_name") or entry.get("type") or "")
