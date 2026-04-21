@@ -10,13 +10,13 @@ Use the IPL lab storage for large data and caches:
 
 ```bash
 export IPL_ROOT=/projects/ipl_lab/jaramillocivill.m
-export AGIBOT_ROOT=$IPL_ROOT/AgiBotWorld2026
-export EXP_ROOT=$IPL_ROOT/cosmos_agibot_planning
-export HF_HOME=$IPL_ROOT/hf_cache
 export PROJECT_ROOT=$IPL_ROOT/cosmos-reason-2
+export AGIBOT_ROOT=$PROJECT_ROOT/AgiBotWorld2026
+export EXP_ROOT=$PROJECT_ROOT/cosmos_agibot_planning
+export HF_HOME=$PROJECT_ROOT/hf_cache
 ```
 
-Do not store AgiBot videos, parquet files, model weights, extracted clips, or raw predictions inside the git repo.
+Do not commit AgiBot videos, parquet files, model weights, extracted clips, or raw predictions. These folders live inside the project checkout for convenience and are ignored by git.
 
 On the H100 cluster, the project checkout should live at:
 
