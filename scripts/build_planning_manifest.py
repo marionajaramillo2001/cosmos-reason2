@@ -49,9 +49,9 @@ def build_manifest(args: argparse.Namespace) -> list[dict[str, Any]]:
         if not isinstance(episode, dict):
             continue
         episode_id = episode_id_from_row(episode, idx)
-        high_level_task = infer_task_text(episode, tasks_by_id)
         reference_subgoals = extract_task_frames(info, annotations, episode_id)
         reference_steps = extract_instruction_segments(info, annotations, episode_id)
+        high_level_task = " ".join(reference_subgoals) if reference_subgoals else infer_task_text(episode, tasks_by_id)
         video_path = find_episode_video(root, episode_id, args.camera)
         objects = extract_objects(episode, reference_subgoals, reference_steps)
         include = bool(high_level_task and video_path and (reference_steps or reference_subgoals))
