@@ -13,15 +13,43 @@ export IPL_ROOT=/projects/ipl_lab/jaramillocivill.m
 export PROJECT_ROOT=$IPL_ROOT/cosmos-reason2
 export AGIBOT_ROOT=$PROJECT_ROOT/AgiBotWorld2026
 export EXP_ROOT=$PROJECT_ROOT/cosmos_agibot_planning
-export HF_HOME=$PROJECT_ROOT/hf_cache
+export HF_HOME=$IPL_ROOT/hf_cache
+export HF_HUB_CACHE=$HF_HOME/hub
+export UV_CACHE_DIR=$IPL_ROOT/uv_cache
 ```
 
-Do not commit AgiBot videos, parquet files, model weights, extracted clips, or raw predictions. These folders live inside the project checkout for convenience and are ignored by git.
+Do not commit AgiBot videos, parquet files, model weights, extracted clips, or raw predictions. AgiBot data and experiment outputs live inside the project checkout for convenience and are ignored by git. Hugging Face and UV caches live directly under the IPL folder so they can be reused across runs.
 
 On the H100 cluster, the project checkout should live at:
 
 ```bash
 /projects/ipl_lab/jaramillocivill.m/cosmos-reason2
+```
+
+Create the large-data/cache folders:
+
+```bash
+mkdir -p "$AGIBOT_ROOT" "$EXP_ROOT" "$HF_HOME" "$HF_HUB_CACHE" "$UV_CACHE_DIR"
+```
+
+If `hf` is missing, install or load the Hugging Face CLI before logging in. Preferred options:
+
+```bash
+module avail 2>&1 | grep -i hugging
+```
+
+If no module exists, install the CLI in your user environment:
+
+```bash
+curl -LsSf https://hf.co/cli/install.sh | bash -s
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then authenticate:
+
+```bash
+hf auth login
+hf auth whoami
 ```
 
 ## Local Prep
