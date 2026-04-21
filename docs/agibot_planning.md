@@ -10,7 +10,7 @@ Use the IPL lab storage for large data and caches:
 
 ```bash
 export IPL_ROOT=/projects/ipl_lab/jaramillocivill.m
-export PROJECT_ROOT=$IPL_ROOT/cosmos-reason-2
+export PROJECT_ROOT=$IPL_ROOT/cosmos-reason2
 export AGIBOT_ROOT=$PROJECT_ROOT/AgiBotWorld2026
 export EXP_ROOT=$PROJECT_ROOT/cosmos_agibot_planning
 export HF_HOME=$PROJECT_ROOT/hf_cache
@@ -21,7 +21,7 @@ Do not commit AgiBot videos, parquet files, model weights, extracted clips, or r
 On the H100 cluster, the project checkout should live at:
 
 ```bash
-/projects/ipl_lab/jaramillocivill.m/cosmos-reason-2
+/projects/ipl_lab/jaramillocivill.m/cosmos-reason2
 ```
 
 ## Local Prep
