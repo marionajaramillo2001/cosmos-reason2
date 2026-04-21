@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+user_prompt: |
+  You are given the initial state of a robot task and a high-level goal.
+
+  Goal: {goal}
+  Visible/annotated objects: {objects}
+
+  Using only the objects and scene context visible in the video, generate the complete ordered action plan needed to complete the task.
+
+  Requirements:
+  - Plan future actions; do not summarize the video.
+  - Use concrete object names.
+  - Avoid hallucinating objects that are not visible or named.
+  - Return only a numbered list of steps.

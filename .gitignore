@@ -18,6 +18,14 @@
 /outputs
 /results
 /checkpoints
+/agibot_data
+/AgiBotWorld2026
+/cosmos_agibot_planning
+/hf_cache
+/planning_outputs/clips
+/planning_outputs/raw
+/planning_outputs/predictions*.jsonl
+/planning_outputs/rag_index*.jsonl
 /examples/**/data
 /examples/**/outputs
 /examples/**/results
