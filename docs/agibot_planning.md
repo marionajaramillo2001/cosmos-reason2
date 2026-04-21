@@ -13,9 +13,9 @@ export IPL_ROOT=/projects/ipl_lab/jaramillocivill.m
 export PROJECT_ROOT=$IPL_ROOT/cosmos-reason2
 export AGIBOT_ROOT=$PROJECT_ROOT/AgiBotWorld2026
 export EXP_ROOT=$PROJECT_ROOT/cosmos_agibot_planning
-export HF_HOME=$IPL_ROOT/hf_cache
+export HF_HOME=$IPL_ROOT/hf-cache
 export HF_HUB_CACHE=$HF_HOME/hub
-export UV_CACHE_DIR=$IPL_ROOT/uv_cache
+export UV_CACHE_DIR=$IPL_ROOT/uv-cache
 ```
 
 Do not commit AgiBot videos, parquet files, model weights, extracted clips, or raw predictions. AgiBot data and experiment outputs live inside the project checkout for convenience and are ignored by git. Hugging Face and UV caches live directly under the IPL folder so they can be reused across runs.
@@ -32,25 +32,28 @@ Create the large-data/cache folders:
 mkdir -p "$AGIBOT_ROOT" "$EXP_ROOT" "$HF_HOME" "$HF_HUB_CACHE" "$UV_CACHE_DIR"
 ```
 
-If `hf` is missing, install or load the Hugging Face CLI before logging in. Preferred options:
+The previously working Explorer setup used `uvx hf`, not the standalone `hf` installer. Start each session with:
 
 ```bash
-module avail 2>&1 | grep -i hugging
+cd /projects/ipl_lab/jaramillocivill.m/cosmos-reason2
+source scripts/agibot_cluster_env.sh
 ```
 
-If no module exists, install the CLI in your user environment:
+If `.venv` is missing, recreate it once:
 
 ```bash
-curl -LsSf https://hf.co/cli/install.sh | bash -s
-export PATH="$HOME/.local/bin:$PATH"
+uv sync --extra cu128
+source .venv/bin/activate
 ```
 
-Then authenticate:
+Authenticate/check Hugging Face with `uvx`:
 
 ```bash
-hf auth login
-hf auth whoami
+uvx hf auth login
+uvx hf auth whoami
 ```
+
+Do not use the standalone `hf` installer unless `uvx hf` fails. On Explorer, that installer may be killed during its pip upgrade step on login nodes.
 
 ## Local Prep
 

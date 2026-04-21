@@ -1,13 +1,23 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Source this on the H100 cluster before running the AgiBot planning pipeline:
+# Source this on Explorer/H100 before running the AgiBot planning pipeline:
 #   source scripts/agibot_cluster_env.sh
 
 export IPL_ROOT=/projects/ipl_lab/jaramillocivill.m
 export PROJECT_ROOT=$IPL_ROOT/cosmos-reason2
 export AGIBOT_ROOT=$PROJECT_ROOT/AgiBotWorld2026
 export EXP_ROOT=$PROJECT_ROOT/cosmos_agibot_planning
-export HF_HOME=$IPL_ROOT/hf_cache
+export HF_HOME=$IPL_ROOT/hf-cache
 export HF_HUB_CACHE=$HF_HOME/hub
-export UV_CACHE_DIR=$IPL_ROOT/uv_cache
+export UV_CACHE_DIR=$IPL_ROOT/uv-cache
+export PATH=$HOME/.local/bin:$PATH
+
+if command -v module >/dev/null 2>&1; then
+    module load FFmpeg/7.1.1 2>/dev/null || true
+fi
+
+if [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "$PROJECT_ROOT/.venv/bin/activate"
+fi
