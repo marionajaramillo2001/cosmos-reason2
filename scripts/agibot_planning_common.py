@@ -227,6 +227,11 @@ def infer_task_text(episode: dict[str, Any], tasks_by_id: dict[str, dict[str, An
     text = first_text(episode)
     if text:
         return text
+    episode_tasks = episode.get("tasks")
+    if isinstance(episode_tasks, list) and episode_tasks:
+        return clean_text(str(episode_tasks[0]))
+    if isinstance(episode_tasks, str):
+        return clean_text(episode_tasks)
     task_id = (
         episode.get("task_id")
         or episode.get("task_index")
