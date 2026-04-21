@@ -75,7 +75,7 @@ RAG uses `sentence-transformers/all-MiniLM-L6-v2` when installed. If that packag
 Pull this branch on the cluster, install the Cosmos Reason2 CUDA/vLLM environment, and point all caches to IPL storage. Start vLLM:
 
 ```bash
-uv run vllm serve nvidia/Cosmos-Reason2-8B \
+uv run vllm serve nvidia/Cosmos-Reason2-2B \
   --allowed-local-media-path "$EXP_ROOT" \
   --max-model-len 8192 \
   --media-io-kwargs '{"video": {"num_frames": -1}}' \
@@ -91,6 +91,7 @@ python scripts/run_planning_prompts.py \
   --rag-index "$EXP_ROOT/rag_index.jsonl" \
   --methods direct hierarchical rag \
   --port 8000 \
+  --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
   --out "$EXP_ROOT/predictions.jsonl"
 ```

@@ -19,6 +19,7 @@ METHOD_TO_PROMPT = {
     "hierarchical": "prompts/planning_hierarchical.yaml",
     "rag": "prompts/planning_rag.yaml",
 }
+DEFAULT_MODEL = "nvidia/Cosmos-Reason2-2B"
 
 
 def load_prompt_template(path: Path) -> str:
@@ -123,7 +124,7 @@ def main() -> None:
     parser.add_argument("--methods", nargs="+", choices=sorted(METHOD_TO_PROMPT), default=["direct", "hierarchical", "rag"])
     parser.add_argument("--host", default="localhost")
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--model", default=None)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--fps", type=float, default=4.0)
     parser.add_argument("--out", required=True, type=Path)
