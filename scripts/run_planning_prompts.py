@@ -18,6 +18,7 @@ METHOD_TO_PROMPT = {
     "direct": "prompts/planning_direct.yaml",
     "hierarchical": "prompts/planning_hierarchical.yaml",
     "rag": "prompts/planning_rag.yaml",
+    "inter_task_rag": "prompts/planning_rag.yaml",
 }
 DEFAULT_MODEL = "nvidia/Cosmos-Reason2-2B"
 
@@ -153,7 +154,7 @@ def main() -> None:
         if not video_path:
             continue
         for method in args.methods:
-            retrieved = rag_index.get(row["episode_id"], []) if method == "rag" else []
+            retrieved = rag_index.get(row["episode_id"], []) if method in {"rag", "inter_task_rag"} else []
             prompt = templates[method].format(
                 goal=row.get("high_level_task", ""),
                 objects=", ".join(row.get("objects", [])) or "unknown",
