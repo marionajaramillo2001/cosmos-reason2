@@ -64,11 +64,24 @@ def read_task_ids(paths: list[Path]) -> set[str]:
     return task_ids
 
 
+def dedupe_by_task(archives: list[str]) -> list[str]:
+    selected = []
+    seen = set()
+    for archive in archives:
+        task_id = task_id_from_archive(archive)
+        if task_id in seen:
+            continue
+        seen.add(task_id)
+        selected.append(archive)
+    return selected
+
+
 def select_archives(
     archives: list[str],
     task_ids: set[str],
     limit: int,
     download_all: bool,
+    one_archive_per_task: bool,
 ) -> list[str]:
     if task_ids:
         archives = [
@@ -76,6 +89,8 @@ def select_archives(
             for archive in archives
             if (match := TASK_RE.search(archive)) and match.group(1) in task_ids
         ]
+    if one_archive_per_task:
+        archives = dedupe_by_task(archives)
     if not download_all and limit:
         archives = archives[:limit]
     return archives
@@ -86,6 +101,13 @@ def task_id_from_archive(path: str) -> str:
     if not match:
         raise ValueError(f"Could not infer task id from archive path: {path}")
     return match.group(1)
+
+
+def archive_id_from_archive(path: str) -> str:
+    match = TASK_RE.search(path)
+    if not match:
+        raise ValueError(f"Could not infer archive id from archive path: {path}")
+    return match.group(2).removesuffix(".tar.gz")
 
 
 def run_command(cmd: list[str], dry_run: bool) -> None:
@@ -120,7 +142,8 @@ def download_archive(args: argparse.Namespace, archive: str) -> Path:
 
 
 def extract_archive(args: argparse.Namespace, archive_path: Path, task_id: str) -> Path:
-    sample_dir = args.local_dir / f"{task_id}_sample"
+    archive_id = archive_id_from_archive(str(archive_path))
+    sample_dir = args.local_dir / f"{task_id}_{archive_id}_sample"
     sample_root = sample_dir / "data"
     if sample_root.exists() and not args.force_extract:
         print(f"Sample already exists, skipping extract: {sample_root}")
@@ -162,6 +185,11 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=15)
     parser.add_argument("--all", action="store_true", help="Download all matching task archives.")
+    parser.add_argument(
+        "--all-archives-per-task",
+        action="store_true",
+        help="Allow multiple archives from the same task. By default, one archive is selected per task.",
+    )
     parser.add_argument("--task-id", action="append", default=[], help="Specific task id, e.g. task_3401. Can be repeated.")
     parser.add_argument("--task-id-file", action="append", type=Path, default=[])
     parser.add_argument("--extract", action="store_true")
@@ -175,7 +203,13 @@ def main() -> None:
     task_ids = set(args.task_id) | read_task_ids(args.task_id_file)
 
     archives = discover_archives(args.repo_id, args.prefix)
-    selected = select_archives(archives, task_ids, args.limit, args.all)
+    selected = select_archives(
+        archives,
+        task_ids,
+        args.limit,
+        args.all,
+        one_archive_per_task=not args.all_archives_per_task,
+    )
     if not selected:
         raise SystemExit("No matching AgiBot task archives found.")
 
