@@ -57,8 +57,12 @@ def format_reference_examples(examples: list[dict[str, Any]]) -> str:
 
 
 def parse_plan(text: str) -> list[str]:
+    json_text = text.strip()
+    fence_match = re.match(r"^```(?:json)?\s*(?P<body>.*?)\s*```$", json_text, flags=re.DOTALL | re.IGNORECASE)
+    if fence_match:
+        json_text = fence_match.group("body").strip()
     try:
-        value = json.loads(text)
+        value = json.loads(json_text)
         if isinstance(value, dict):
             if isinstance(value.get("steps"), list):
                 return [str(x) for x in value["steps"]]
