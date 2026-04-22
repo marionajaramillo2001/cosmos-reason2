@@ -89,7 +89,51 @@ details.raw pre { background: #f4f4f4; padding: 8px; border-radius: 4px; font-si
 table.index { border-collapse: collapse; width: 100%; background: #fff; }
 table.index th, table.index td { border: 1px solid #e3e3e3; padding: 6px 10px; font-size: 14px; text-align: left; }
 table.index th { background: #f0f0f0; }
+.legend { background: #fff; border: 1px solid #e3e3e3; border-radius: 8px; padding: 12px 16px; margin: 12px 0 24px; font-size: 13px; }
+.legend h3 { margin: 0 0 6px; font-size: 14px; }
+.legend ul { margin: 4px 0; padding-left: 20px; }
+.legend li { margin: 2px 0; }
+.legend code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+[title] { cursor: help; border-bottom: 1px dotted #888; }
+th[title] { border-bottom: 1px dotted #888; }
 """
+
+
+LEGEND_HTML = """
+<section class="legend">
+  <h3>How to read the scores</h3>
+  <p>Each cell shows <strong>judge overall (bold, out of 5)</strong> on top and <em>embedding step coverage (out of 1)</em> below. Hover any header or metric chip for details.</p>
+  <ul>
+    <li><strong>Judge overall /5</strong> — mean of four Prometheus-2-7B rubrics (1–5 each), averaged across 3 runs at temperature 0.2:
+      <ul>
+        <li><code>goal_completion</code>: does the plan achieve the high-level goal?</li>
+        <li><code>step_ordering</code>: are actions in a valid executable order?</li>
+        <li><code>subgoal_coverage</code>: are the reference subgoals covered?</li>
+        <li><code>no_hallucination</code>: are all referenced objects/actions grounded in the scene?</li>
+      </ul>
+    </li>
+    <li><strong>Embedding step coverage /1</strong> — for each reference step, take the max cosine similarity (MiniLM embeddings) against any generated step; average across reference steps. Measures semantic recall, robust to paraphrasing.</li>
+    <li><strong>Embedding order LCS /1</strong> (episode pages) — longest-common-subsequence over matched step indices (threshold 0.55), normalized by reference length. Measures whether matched steps appear in the right order.</li>
+    <li><strong>Object F1 /1</strong> (episode pages) — token-level F1 on object nouns mentioned. Lexical sanity check; easy to game.</li>
+  </ul>
+</section>
+"""
+
+
+RUBRIC_TOOLTIPS = {
+    "goal_completion_mean": "Goal completion (1-5): does the plan achieve the high-level goal?",
+    "step_ordering_mean": "Step ordering (1-5): are actions in a valid executable order?",
+    "subgoal_coverage_mean": "Subgoal coverage (1-5): are reference subgoals covered?",
+    "no_hallucination_mean": "No hallucination (1-5): are all referenced objects/actions grounded?",
+    "overall_mean": "Overall = mean of the 4 Prometheus rubrics (scale 1-5)",
+}
+
+
+EMBEDDING_TOOLTIPS = {
+    "embedding_step_coverage": "Embedding step coverage (0-1): mean over reference steps of max cosine similarity to any generated step. Semantic recall.",
+    "embedding_order_lcs": "Embedding order LCS (0-1): LCS over matched step indices (sim threshold 0.55), normalized by reference length.",
+    "object_f1": "Object F1 (0-1): token-level F1 on object nouns in generated vs reference plans.",
+}
 
 
 def expand_globs(values: list[str]) -> list[Path]:
@@ -278,14 +322,20 @@ def render_scores(
                 continue
             label = "judge " + key.replace("_mean", "").replace("_", " ")
             cls = "overall" if key == "overall_mean" else ""
-            chips.append(f'<span class="{cls}">{safe_html(label)}: {safe_html(val)}</span>')
+            tip = safe_html(RUBRIC_TOOLTIPS.get(key, ""))
+            chips.append(
+                f'<span class="{cls}" title="{tip}">{safe_html(label)}: {safe_html(val)}/5</span>'
+            )
     if embedding_row:
         for key in ("embedding_step_coverage", "embedding_order_lcs", "object_f1"):
             val = embedding_row.get(key, "")
             if val == "":
                 continue
             label = key.replace("_", " ")
-            chips.append(f'<span class="embedding">{safe_html(label)}: {safe_html(val)}</span>')
+            tip = safe_html(EMBEDDING_TOOLTIPS.get(key, ""))
+            chips.append(
+                f'<span class="embedding" title="{tip}">{safe_html(label)}: {safe_html(val)}/1</span>'
+            )
     if not chips:
         return ""
     return f'<div class="scores">{"".join(chips)}</div>'
@@ -427,7 +477,8 @@ def render_index_page(
         for m in methods_present:
             label = safe_html(METHOD_LABEL.get(m, m))
             header_cells_parts.append(
-                f'<th>{label}<br><span class="score-sub">judge / emb cov</span></th>'
+                f'<th title="Top: Prometheus judge overall (mean of 4 rubrics, scale 1-5). Bottom: embedding step coverage (cosine similarity, 0-1).">'
+                f'{label}<br><span class="score-sub">judge /5 &middot; emb cov /1</span></th>'
             )
         header_cells = "".join(header_cells_parts)
         for ep in sorted(by_task[task_name], key=lambda e: e["episode_id"]):
@@ -435,10 +486,13 @@ def render_index_page(
             for m in methods_present:
                 j = judge_scores.get((task_name, ep["episode_id"], m))
                 e = embedding_scores.get((task_name, ep["episode_id"], m))
-                j_val = (j.get("overall_mean", "") if j else "") or "nan"
-                e_val = (e.get("embedding_step_coverage", "") if e else "") or "nan"
+                j_raw = (j.get("overall_mean", "") if j else "") or ""
+                e_raw = (e.get("embedding_step_coverage", "") if e else "") or ""
+                j_val = f"{j_raw}/5" if j_raw else "nan"
+                e_val = f"{e_raw}/1" if e_raw else "nan"
                 score_cells.append(
-                    f"<td><strong>{safe_html(j_val)}</strong>"
+                    f'<td title="judge overall (1-5): {safe_html(j_raw or "n/a")} &#10;embedding step coverage (0-1): {safe_html(e_raw or "n/a")}">'
+                    f"<strong>{safe_html(j_val)}</strong>"
                     f'<br><span class="score-sub">{safe_html(e_val)}</span></td>'
                 )
             rows_html.append(
@@ -465,6 +519,7 @@ def render_index_page(
   <h1>Planning comparison viewer</h1>
   <p>Per-episode comparison of direct, hierarchical, and RAG planning methods on Cosmos-Reason-derived plans.</p>
 </header>
+{LEGEND_HTML}
 {''.join(sections)}
 </body></html>
 """
