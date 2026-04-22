@@ -116,7 +116,28 @@ python scripts/run_episode_rank_comparison.py \
   --episode-rank 0
 ```
 
-Reparse and evaluate:
+Reparse, prettify, and evaluate the aligned comparison:
+
+```bash
+python scripts/evaluate_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --predictions-dir "$EXP_ROOT/predictions_rank0" \
+  --out-dir planning_outputs/rank0 \
+  --episode-rank 0
+```
+
+For a one-task smoke evaluation, use:
+
+```bash
+python scripts/evaluate_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --predictions-dir "$EXP_ROOT/predictions_rank0_smoke" \
+  --out-dir planning_outputs/rank0_smoke \
+  --episode-rank 0 \
+  --limit-tasks 1
+```
+
+For one-off prediction files, reparse and evaluate manually:
 
 ```bash
 python scripts/reparse_generated_plans.py \
@@ -148,6 +169,7 @@ scripts/run_episode_rank_comparison.py
 scripts/run_planning_prompts.py
 scripts/run_planning_prompts_transformers.py
 scripts/reparse_generated_plans.py
+scripts/evaluate_episode_rank_comparison.py
 scripts/evaluate_plans.py
 ```
 

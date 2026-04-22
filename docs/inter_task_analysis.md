@@ -237,7 +237,41 @@ intra_task_rag
 inter_task_rag
 ```
 
-## 7. Analysis Shape
+## 7. Reparse, Prettify, and Evaluate
+
+After the smoke run, merge the same-task and inter-task prediction files, reparse the generated plans, prettify JSON-style hierarchical outputs into numbered steps, and evaluate against the matching task manifest:
+
+```bash
+python scripts/evaluate_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --predictions-dir "$EXP_ROOT/predictions_rank0_smoke" \
+  --out-dir planning_outputs/rank0_smoke \
+  --episode-rank 0 \
+  --limit-tasks 1
+```
+
+After the full 10-task run:
+
+```bash
+python scripts/evaluate_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --predictions-dir "$EXP_ROOT/predictions_rank0" \
+  --out-dir planning_outputs/rank0 \
+  --episode-rank 0
+```
+
+The batch evaluator writes:
+
+```text
+planning_outputs/rank0/reparsed/*_rank0_all_methods_reparsed.jsonl
+planning_outputs/rank0/per_task/*_rank0_auto_eval.csv
+planning_outputs/rank0/per_task/*_rank0_auto_eval_summary.json
+planning_outputs/rank0/per_task/*_rank0_human_scores.csv
+planning_outputs/rank0/rank0_combined_auto_eval.csv
+planning_outputs/rank0/rank0_combined_auto_eval_summary.json
+```
+
+## 8. Analysis Shape
 
 Use the per-task evaluation CSVs in two views:
 
