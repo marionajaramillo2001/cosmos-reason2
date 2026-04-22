@@ -145,6 +145,18 @@ python scripts/run_planning_prompts.py \
   --out "$EXP_ROOT/predictions.jsonl"
 ```
 
+If vLLM fails because of CUDA attention-kernel compatibility, use direct Transformers inference instead:
+
+```bash
+python scripts/run_planning_prompts_transformers.py \
+  --manifest "$EXP_ROOT/manifest_with_clips.jsonl" \
+  --rag-index "$EXP_ROOT/rag_index.jsonl" \
+  --methods direct hierarchical rag \
+  --model nvidia/Cosmos-Reason2-2B \
+  --fps 4 \
+  --out "$EXP_ROOT/predictions.jsonl"
+```
+
 ## Evaluation
 
 Automatic metrics:
