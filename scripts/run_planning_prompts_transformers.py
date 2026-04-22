@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import json
 import warnings
 from pathlib import Path
 from typing import Any
@@ -17,8 +18,10 @@ from typing import Any
 from agibot_planning_common import read_jsonl, write_jsonl
 from run_planning_prompts import (
     DEFAULT_MODEL,
+    HIERARCHICAL_TWO_CALL_EXPAND_PROMPT,
     METHOD_TO_PROMPT,
     RAG_METHODS,
+    TWO_CALL_METHODS,
     format_reference_examples,
     load_prompt_template,
     load_rag_index,
@@ -118,6 +121,92 @@ def generate_one(
     return output_text.strip()
 
 
+def generate_hierarchical_two_call(
+    model: Any,
+    processor: Any,
+    video_path: str,
+    goal: str,
+    objects_str: str,
+    subgoals_template: str,
+    expand_template: str,
+    fps: float,
+    max_new_tokens: int,
+) -> dict[str, Any]:
+    """Run the two-call hierarchical planner.
+
+    Call 1: ask for a short list of high-level subgoals.
+    Call 2 (per subgoal): ask the model to expand that subgoal into low-level actions,
+    conditioned on the video and the full subgoal list.
+
+    Returns a dict with the intermediate subgoals prompt/response, the per-subgoal
+    expansion prompts/responses, and a flattened final plan compatible with the
+    existing evaluation scripts.
+    """
+
+    subgoals_prompt = subgoals_template.format(goal=goal, objects=objects_str)
+    subgoals_raw = generate_one(
+        model=model,
+        processor=processor,
+        video_path=video_path,
+        prompt=subgoals_prompt,
+        fps=fps,
+        max_new_tokens=max_new_tokens,
+    )
+    subgoals = parse_plan(subgoals_raw)
+
+    subgoal_list_str = "\n".join(f"{i}. {sg}" for i, sg in enumerate(subgoals, start=1))
+    expansions: list[dict[str, Any]] = []
+    flat_plan: list[str] = []
+
+    for i, subgoal in enumerate(subgoals, start=1):
+        expand_prompt = expand_template.format(
+            goal=goal,
+            objects=objects_str,
+            subgoal_list=subgoal_list_str,
+            subgoal_index=i,
+            subgoal_total=len(subgoals),
+            subgoal=subgoal,
+        )
+        expand_raw = generate_one(
+            model=model,
+            processor=processor,
+            video_path=video_path,
+            prompt=expand_prompt,
+            fps=fps,
+            max_new_tokens=max_new_tokens,
+        )
+        expand_steps = parse_plan(expand_raw)
+        expansions.append(
+            {
+                "subgoal_index": i,
+                "subgoal": subgoal,
+                "prompt": expand_prompt,
+                "raw_response": expand_raw,
+                "steps": expand_steps,
+            }
+        )
+        flat_plan.extend(expand_steps)
+
+    combined_raw = json.dumps(
+        {
+            "subgoals": subgoals,
+            "expansions": [
+                {"subgoal": exp["subgoal"], "steps": exp["steps"]} for exp in expansions
+            ],
+        },
+        indent=2,
+    )
+
+    return {
+        "subgoals_prompt": subgoals_prompt,
+        "subgoals_raw_response": subgoals_raw,
+        "subgoals": subgoals,
+        "expansions": expansions,
+        "raw_response": combined_raw,
+        "generated_plan": flat_plan,
+    }
+
+
 def main() -> None:
     warnings.filterwarnings("ignore")
     parser = argparse.ArgumentParser()
@@ -148,6 +237,11 @@ def main() -> None:
         rows = rows[: args.limit]
     rag_index = load_rag_index(args.rag_index)
     templates = {method: load_prompt_template(Path(METHOD_TO_PROMPT[method])) for method in args.methods}
+    expand_template = (
+        load_prompt_template(Path(HIERARCHICAL_TWO_CALL_EXPAND_PROMPT))
+        if any(method in TWO_CALL_METHODS for method in args.methods)
+        else None
+    )
 
     print(f"Loading {args.model} with Transformers ({args.attn_implementation=}, {args.dtype=})")
     model, processor = load_model_and_processor(args)
@@ -159,32 +253,65 @@ def main() -> None:
             continue
         for method in args.methods:
             retrieved = rag_index.get(row["episode_id"], []) if method in RAG_METHODS else []
-            prompt = templates[method].format(
-                goal=row.get("high_level_task", ""),
-                objects=", ".join(row.get("objects", [])) or "unknown",
-                reference_examples=format_reference_examples(retrieved),
-            )
-            raw = generate_one(
-                model=model,
-                processor=processor,
-                video_path=video_path,
-                prompt=prompt,
-                fps=args.fps,
-                max_new_tokens=args.max_new_tokens,
-            )
-            outputs.append(
-                {
-                    "episode_id": row["episode_id"],
-                    "method": method,
-                    "model": args.model,
-                    "runtime": "transformers",
-                    "video_path": video_path,
-                    "prompt": prompt,
-                    "raw_response": raw,
-                    "generated_plan": parse_plan(raw),
-                    "retrieved_examples": retrieved,
-                }
-            )
+            goal = row.get("high_level_task", "")
+            objects_str = ", ".join(row.get("objects", [])) or "unknown"
+
+            if method in TWO_CALL_METHODS:
+                assert expand_template is not None
+                result = generate_hierarchical_two_call(
+                    model=model,
+                    processor=processor,
+                    video_path=video_path,
+                    goal=goal,
+                    objects_str=objects_str,
+                    subgoals_template=templates[method],
+                    expand_template=expand_template,
+                    fps=args.fps,
+                    max_new_tokens=args.max_new_tokens,
+                )
+                outputs.append(
+                    {
+                        "episode_id": row["episode_id"],
+                        "method": method,
+                        "model": args.model,
+                        "runtime": "transformers",
+                        "video_path": video_path,
+                        "prompt": result["subgoals_prompt"],
+                        "raw_response": result["raw_response"],
+                        "generated_plan": result["generated_plan"],
+                        "subgoals": result["subgoals"],
+                        "subgoals_raw_response": result["subgoals_raw_response"],
+                        "expansions": result["expansions"],
+                        "retrieved_examples": retrieved,
+                    }
+                )
+            else:
+                prompt = templates[method].format(
+                    goal=goal,
+                    objects=objects_str,
+                    reference_examples=format_reference_examples(retrieved),
+                )
+                raw = generate_one(
+                    model=model,
+                    processor=processor,
+                    video_path=video_path,
+                    prompt=prompt,
+                    fps=args.fps,
+                    max_new_tokens=args.max_new_tokens,
+                )
+                outputs.append(
+                    {
+                        "episode_id": row["episode_id"],
+                        "method": method,
+                        "model": args.model,
+                        "runtime": "transformers",
+                        "video_path": video_path,
+                        "prompt": prompt,
+                        "raw_response": raw,
+                        "generated_plan": parse_plan(raw),
+                        "retrieved_examples": retrieved,
+                    }
+                )
             write_jsonl(args.out.expanduser(), outputs)
             print(f"Completed {row['episode_id']} / {method}")
             gc.collect()

@@ -17,11 +17,17 @@ from agibot_planning_common import read_jsonl, write_jsonl
 METHOD_TO_PROMPT = {
     "direct": "prompts/planning_direct.yaml",
     "hierarchical": "prompts/planning_hierarchical.yaml",
+    # Two-call hierarchical uses a pair of prompts; the value below is the subgoals prompt
+    # and the expansion prompt is resolved via HIERARCHICAL_TWO_CALL_EXPAND_PROMPT below.
+    # Callers that only look up METHOD_TO_PROMPT[method] will still get a valid file path.
+    "hierarchical_two_call": "prompts/planning_hierarchical_subgoals.yaml",
     "intra_task_rag": "prompts/planning_rag.yaml",
     # Backward-compatible alias for older prediction runs.
     "rag": "prompts/planning_rag.yaml",
     "inter_task_rag": "prompts/planning_rag.yaml",
 }
+HIERARCHICAL_TWO_CALL_EXPAND_PROMPT = "prompts/planning_hierarchical_expand.yaml"
+TWO_CALL_METHODS = {"hierarchical_two_call"}
 RAG_METHODS = {"rag", "intra_task_rag", "inter_task_rag"}
 DEFAULT_MODEL = "nvidia/Cosmos-Reason2-2B"
 

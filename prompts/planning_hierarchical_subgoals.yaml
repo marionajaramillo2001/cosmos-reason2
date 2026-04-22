@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+user_prompt: |
+  You are given the initial state of a robot task and a high-level goal.
+
+  Goal: {goal}
+  Visible/annotated objects: {objects}
+
+  Decompose the task into a small number of high-level subgoals (typically 3 to 6).
+  Each subgoal should describe a meaningful stage of the task, not a single low-level action.
+
+  Requirements:
+  - Plan future subgoals; do not summarize the video.
+  - Use concrete object names from the scene.
+  - Avoid hallucinating objects that are not visible or named.
+  - Return only a JSON list of subgoal strings, no other text.
+
+  Example output format:
+  ["Pick up the red drink from the shelf", "Place the red drink in the cart", "Pick up the yogurt", "Place the yogurt in the cart"]
