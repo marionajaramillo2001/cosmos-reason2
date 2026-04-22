@@ -1,0 +1,21 @@
+# Hand-written high-level goals per task, to replace the noisy concatenated
+# subgoal annotations in the manifests. Keys match the task_name derived from
+# the manifest filename (task_<id>_<start>_<end>).
+#
+# Guidelines while writing:
+#   - Describe the OUTCOME, not the steps.
+#   - Preserve object counts ("five bottles", "two popcorn buckets").
+#   - Don't prescribe which arm does what.
+#   - Don't list subgoals in order.
+#   - One sentence, <= ~25 words.
+
+task_3400_313498_314085: ""
+task_3401_352507_353983: ""
+task_3402_373661_375235: ""
+task_3404_305627_321730: ""
+task_3405_389111_389369: ""
+task_3477_248923_250431: ""
+task_3641_304773_306558: ""
+task_3705_312820_313211: ""
+task_3777_325306_327364: ""
+task_4053_368961_369296: ""
