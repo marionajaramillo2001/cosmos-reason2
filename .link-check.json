@@ -1,7 +1,0 @@
-{
-    "ignorePatterns": [
-        {
-            "pattern": "^https://huggingface.co/collections/nvidia/cosmos-reason2"
-        }
-    ]
-}

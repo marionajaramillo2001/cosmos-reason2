@@ -1,15 +1,14 @@
-# Prompts
+# Planning Prompts
 
-We provide a set of task-specific prompt templates:
+This project uses three prompt templates for AgiBot long-horizon planning:
 
-* Captioning
-  * [Caption](caption.yaml)
-  * [Temporal Localization](temporal_localization.yaml)
-  * [Describe Anything](describe_anything.yaml)
-  * [2D Grounding](2d_grounding.yaml)
-* Embodied Reasoning
-  * [Embodied Reasoning](embodied_reasoning.yaml)
-  * [Robot COT](robot_cot.yaml)
-  * [AV COT](av_cot.yaml)
-  * [MVP Bench](mvp_bench.yaml)
-  * [Causal VQA](causal_vqa.yaml)
+- `planning_direct.yaml`: generate an ordered action plan directly from the initial video state and goal.
+- `planning_hierarchical.yaml`: decompose the task into subgoals and executable robot actions.
+- `planning_rag.yaml`: generate a plan with retrieved reference examples.
+
+`planning_rag.yaml` is shared by both RAG conditions:
+
+```text
+intra_task_rag: retrieved examples come from the same task cluster.
+inter_task_rag: retrieved examples come from other task clusters only.
+```

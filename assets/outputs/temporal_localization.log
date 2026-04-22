@@ -1,66 +1,0 @@
---------------------
-System:
-  You are a helpful assistant.
---------------------
-User:
-  Describe the notable events in the provided video. Provide the result in json format with 'mm:ss.ff' 
-format for time depiction for each event. Use keywords 'start', 'end' and 'caption' in the json output.
---------------------
-SamplingParams(
-│   max_tokens=4096,
-│   top_p=0.8,
-│   top_k=20,
-│   repetition_penalty=1.0,
-│   presence_penalty=1.5,
-│   temperature=0.7,
-│   seed=3407
-)
-VisionConfig(
-│   fps=4.0,
-│   total_pixels=3774873
-)
-[
-│   {
-│   │   'role': 'system',
-│   │   'content': 'You are a helpful assistant.'
-│   },
-│   {
-│   │   'role': 'user',
-│   │   'content': [
-│   │   │   {
-│   │   │   │   'type': 'video',
-│   │   │   │   'video': 'assets/sample.mp4',
-│   │   │   │   'fps': 4.0,
-│   │   │   │   'total_pixels': 3774873
-│   │   │   },
-│   │   │   {
-│   │   │   │   'type': 'text',
-│   │   │   │   'text': "Describe the notable events in the provided video. Provide the result in json format with 'mm:ss.ff' format for time depiction for each event. Use keywords 'start', 'end' and 'caption' in the json output."
-│   │   │   }
-│   │   ]
-│   }
-]
-[0;36m(EngineCore_DP0 pid=3254248)[0;0m Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
-[0;36m(EngineCore_DP0 pid=3254248)[0;0m Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  1.44it/s]
-[0;36m(EngineCore_DP0 pid=3254248)[0;0m Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  1.44it/s]
-[0;36m(EngineCore_DP0 pid=3254248)[0;0m 
-qwen-vl-utils using torchcodec to read video.
-[2025-12-12 18:34:31] INFO vision_process.py:354: set TORCHCODEC_NUM_THREADS: 8
-[2025-12-12 18:34:32] INFO vision_process.py:369: torchcodec:  video_path='assets/sample.mp4', total_frames=10, video_fps=4.0, time=0.041s
-Adding requests:   0%|          | 0/1 [00:00<?, ?it/s]Adding requests: 100%|██████████| 1/1 [00:09<00:00,  9.91s/it]Adding requests: 100%|██████████| 1/1 [00:09<00:00,  9.91s/it]
-Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s]Processed prompts: 100%|██████████| 1/1 [00:01<00:00,  1.51s/it, est. speed input: 1974.65 toks/s, output: 50.94 toks/s]Processed prompts: 100%|██████████| 1/1 [00:01<00:00,  1.51s/it, est. speed input: 1974.65 toks/s, output: 50.94 toks/s]Processed prompts: 100%|██████████| 1/1 [00:01<00:00,  1.51s/it, est. speed input: 1974.65 toks/s, output: 50.94 toks/s]
-CompletionOutput(index=0, text='```json\n[\n  {\n    "start": "00:00.100",\n    "end": "00:02.100",\n    "caption": "The camera is positioned at the front of a vehicle, showing a clear view through the windshield and dashboard into a suburban street lined with houses and parked cars."\n  }\n]\n```', token_ids=[73594, 2236, 198, 9640, 220, 341, 262, 330, 2468, 788, 330, 15, 15, 25, 15, 15, 13, 16, 15, 15, 756, 262, 330, 408, 788, 330, 15, 15, 25, 15, 17, 13, 16, 15, 15, 756, 262, 330, 23347, 788, 330, 785, 6249, 374, 34228, 518, 279, 4065, 315, 264, 7310, 11, 9027, 264, 2797, 1651, 1526, 279, 73939, 323, 26967, 1119, 264, 45218, 8592, 31293, 448, 14967, 323, 42235, 9331, 10040, 220, 456, 921, 73594, 151645], cumulative_logprob=None, logprobs=None, finish_reason=stop, stop_reason=None)
---------------------
-Assistant:
-  ```json
-  [
-    {
-      "start": "00:00.100",
-      "end": "00:02.100",
-      "caption": "The camera is positioned at the front of a vehicle, showing a clear view through the windshield and dashboard into a suburban street 
-lined with houses and parked cars."
-    }
-  ]
-  ```
---------------------
-[rank0]:[W1212 18:34:45.380212855 ProcessGroupNCCL.cpp:1524] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())

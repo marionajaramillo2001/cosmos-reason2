@@ -79,11 +79,11 @@ local_archive_path
 sample_root
 ```
 
-The extracted task roots follow this pattern:
+The extracted task roots include the task id and archive id:
 
 ```text
-$AGIBOT_ROOT/task_3401_sample/data
-$AGIBOT_ROOT/task_<id>_sample/data
+$AGIBOT_ROOT/task_3400_313498_314085_sample/data
+$AGIBOT_ROOT/task_<id>_<archive_id>_sample/data
 ```
 
 ## 4. Download All Matching Task Archives
@@ -138,7 +138,43 @@ python scripts/build_rag_index.py \
 
 This produces the same-task retrieval condition. Use method name `intra_task_rag` for this index when running inference, so it is distinguishable from `inter_task_rag`.
 
-Then run Cosmos Reason2 with the Transformers runner on an H200 node for each task manifest.
+Build different-task RAG indexes:
+
+```bash
+mkdir -p "$EXP_ROOT/rag_inter_task"
+
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_inter_task" \
+  --top-k 3 \
+  --backend lexical
+```
+
+Then run Cosmos Reason2 with the Transformers runner on a GPU node for each task manifest.
+
+Same-task conditions:
+
+```bash
+python scripts/run_planning_prompts_transformers.py \
+  --manifest "$MANIFEST" \
+  --rag-index "$EXP_ROOT/rag/$NAME.jsonl" \
+  --methods direct hierarchical intra_task_rag \
+  --model nvidia/Cosmos-Reason2-2B \
+  --fps 4 \
+  --out "$EXP_ROOT/predictions/${NAME}_predictions.jsonl"
+```
+
+Different-task RAG:
+
+```bash
+python scripts/run_planning_prompts_transformers.py \
+  --manifest "$MANIFEST" \
+  --rag-index "$EXP_ROOT/rag_inter_task/${NAME}_inter_task.jsonl" \
+  --methods inter_task_rag \
+  --model nvidia/Cosmos-Reason2-2B \
+  --fps 4 \
+  --out "$EXP_ROOT/predictions_inter_task_rag/${NAME}_inter_task_rag_predictions.jsonl"
+```
 
 ## 6. Analysis Shape
 

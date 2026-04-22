@@ -1,277 +1,152 @@
-<p align="center">
-    <img src="https://github.com/user-attachments/assets/28f2d612-bbd6-44a3-8795-833d05e9f05f" width="274" alt="NVIDIA Cosmos"/>
-</p>
+# Cosmos Reason2 AgiBot Planning
 
-<p align="center">
-  🤗 <a href="https://huggingface.co/collections/nvidia/cosmos-reason2">Hugging Face</a>&nbsp | <a href="https://github.com/nvidia-cosmos/cosmos-cookbook">Cosmos Cookbook</a>
-</p>
+This branch is a focused project workspace for long-horizon video-grounded robot planning with Cosmos Reason2 on AgiBotWorld2026.
 
-NVIDIA Cosmos Reason – an open, customizable, reasoning vision language model (VLM) for physical AI and robotics - enables robots and vision AI agents to reason like humans, using prior knowledge, physics understanding and common sense to understand and act in the real world. This model understands space, time, and fundamental physics, and can serve as a planning model to reason what steps an embodied agent might take next.
+The experiment asks:
 
-Cosmos Reason excels at navigating the long tail of diverse scenarios of the physical world with spatial-temporal understanding. Cosmos Reason is post-trained with physical common sense and embodied reasoning data with supervised fine-tuning and reinforcement learning. It uses chain-of-thought reasoning capabilities to understand world dynamics without human annotations.
-
-<!--TOC-->
-
-______________________________________________________________________
-
-**Table of Contents**
-
-- [News!](#news)
-- [Model Family](#model-family)
-- [Setup](#setup)
-- [Inference](#inference)
-  - [Minimum GPU Memory](#minimum-gpu-memory)
-  - [Tested Platforms](#tested-platforms)
-  - [Transformers](#transformers)
-  - [Deployment](#deployment)
-    - [Online Serving](#online-serving)
-    - [Offline Inference](#offline-inference)
-- [Post-Training](#post-training)
-- [Quantization](#quantization)
-- [Troubleshooting](#troubleshooting)
-- [Additional Resources](#additional-resources)
-- [License and Contact](#license-and-contact)
-
-______________________________________________________________________
-
-<!--TOC-->
-
-## News!
-
-* [February 9, 2026] We have Improved documentation and troubleshooting guidance, expanded platform support GB200 and ARM (torchcodec & inference sample fixed), enhanced quantization and training debuggability, and updated CUDA compatibility
-* [December 19, 2025] We have released the Cosmos-Reason2 models and code for Physical AI common sense and embodied reasoning. The 2B and 8B models are now available on Hugging Face.
-
-## Model Family
-
-* [Cosmos-Reason2-2B](https://huggingface.co/nvidia/Cosmos-Reason2-2B)
-* [Cosmos-Reason2-8B](https://huggingface.co/nvidia/Cosmos-Reason2-8B)
-
-## Setup
-
-> **This repository only contains documentation/examples/utilities. You do not need it to run inference. See [Inference example](scripts/inference_sample.py) for a minimal inference example. The following setup instructions are only needed to run the examples in this repository.**
-
-Clone the repository:
-
-```shell
-git clone https://github.com/nvidia-cosmos/cosmos-reason2.git
-cd cosmos-reason2
+```text
+initial AgiBot video clip + high-level task goal -> ordered future action plan
 ```
 
-Install one of the following environments:
+It compares four prompting conditions:
 
-<details id="virtual-environment"><summary><b>Virtual Environment</b></summary>
-
-Install system dependencies:
-
-```shell
-sudo apt-get install curl ffmpeg git git-lfs unzip
+```text
+direct
+hierarchical
+intra_task_rag
+inter_task_rag
 ```
 
-* [uv](https://docs.astral.sh/uv/getting-started/installation/)
+## Current Workflow
 
-```shell
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-```
+The active Explorer runbooks are:
 
-* [Hugging Face CLI](https://huggingface.co/docs/huggingface_hub/en/guides/cli)
+- [Explorer Working Setup](docs/explorer_working_setup.md)
+- [Inter-Task Analysis](docs/inter_task_analysis.md)
 
-```shell
-uvx hf auth login
-```
-
-Install the repository:
-
-```shell
-uv sync --extra cu128
-source .venv/bin/activate
-```
-
-CUDA variants:
-
-| CUDA Version | Arguments | Notes |
-| --- | --- | --- |
-| CUDA 12.8 | `--extra cu128` | [NVIDIA Driver](https://docs.nvidia.com/cuda/archive/12.8.1/cuda-toolkit-release-notes/index.html#cuda-toolkit-major-component-versions) |
-| CUDA 13.0 | `--extra cu130` | [NVIDIA Driver](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html#cuda-toolkit-major-component-versions) |
-
-For DGX Spark and Jetson AGX, you must use CUDA 13.0. Additionally, you must set `TRITON_PTXAS_PATH` to your system `PTXAS`:
-
-```shell
-export TRITON_PTXAS_PATH="/usr/local/cuda/bin/ptxas"
-```
-
-</details>
-
-<details id="docker-container"><summary><b>Docker Container</b></summary>
-
-Please make sure you have access to Docker on your machine and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) is installed.
-
-Build the container:
+The working cluster project path is:
 
 ```bash
-image_tag=$(docker build -f Dockerfile --build-arg=CUDA_VERSION=12.8.1 -q .)
+/projects/ipl_lab/jaramillocivill.m/cosmos-reason2
 ```
 
-CUDA variants:
-
-| CUDA Version | Arguments | Notes |
-| --- | --- | --- |
-| CUDA 12.8 | `--build-arg=CUDA_VERSION=12.8.1` | [NVIDIA Driver](https://docs.nvidia.com/cuda/archive/12.8.1/cuda-toolkit-release-notes/index.html#cuda-toolkit-major-component-versions) |
-| CUDA 13.0 | `--build-arg=CUDA_VERSION=13.0.0` | [NVIDIA Driver](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html#cuda-toolkit-major-component-versions) |
-
-For DGX Spark and Jetson AGX, you must use CUDA 13.0.
-
-Run the container:
+Start each Explorer session with:
 
 ```bash
-docker run -it --gpus all --ipc=host --rm -v .:/workspace -v /workspace/.venv -v /workspace/examples/cosmos_rl/.venv -v /root/.cache:/root/.cache -e HF_TOKEN="$HF_TOKEN" $image_tag
+cd /projects/ipl_lab/jaramillocivill.m/cosmos-reason2
+git pull
+source scripts/agibot_cluster_env.sh
 ```
 
-Optional arguments:
+## Active Pipeline
 
-* `--ipc=host`: Use host system's shared memory, since parallel torchrun consumes a large amount of shared memory. If not allowed by security policy, increase `--shm-size` ([documentation](https://docs.docker.com/engine/containers/run/#runtime-constraints-on-resources)).
-* `-v /root/.cache:/root/.cache`: Mount host cache to avoid re-downloading cache entries.
-* `-e HF_TOKEN="$HF_TOKEN"`: Set Hugging Face token to avoid re-authenticating.
+Download and extract AgiBot task archives:
 
-</details>
-
-## Inference
-
-### Minimum GPU Memory
-
-| Model | GPU Memory |
-| --- | --- |
-| Cosmos-Reason2-2B | 24GB |
-| Cosmos-Reason2-8B | 32GB |
-
-### Tested Platforms
-
-Cosmos-Reason2 works on Hopper and Blackwell. Additional hardware configurations may work but are not officially validated at the time of this release.
-
-Examples have been tested on the following devices:
-
-| GPU | CUDA Version | Functionality |
-| --- | --- | --- |
-| NVIDIA H100 | 12.8 | inference/post-training/quantization |
-| NVIDIA GB200 | 13.0 | inference |
-| NVIDIA DGX Spark | 13.0 | inference |
-| NVIDIA Jetson AGX Thor (Edge) | 13.0 | Transformers inference. vLLM inference is coming soon! |
-
-### Transformers
-
-Cosmos-Reason2 is included in [`transformers>=4.57.0`](https://huggingface.co/docs/transformers/en/index).
-
-[Minimal example](scripts/inference_sample.py) ([sample output](assets/outputs/sample.log)):
-
-```shell
-python scripts/inference_sample.py
+```bash
+uv run --with huggingface_hub scripts/download_agibot_task_archives.py \
+  --limit 15 \
+  --extract \
+  --out "$EXP_ROOT/agibot_task_archives_15.jsonl"
 ```
 
-### Deployment
+Build per-task manifests, clips, and same-task RAG indexes:
 
-For deployment and batch inference, we recommend using [`vllm>=0.11.0`](https://docs.vllm.ai/en/stable/).
-
-#### Online Serving
-
-Start the server in a separate terminal or a background process.
-
-> [!TIP]
-> **Docker users:** Run `docker exec -it <CONTAINER_ID> bash` to exec into your container. Find your container ID with `docker ps`.
-
-```shell
-vllm serve nvidia/Cosmos-Reason2-2B \
-  --allowed-local-media-path "$(pwd)" \
-  --max-model-len 16384 \
-  --media-io-kwargs '{"video": {"num_frames": -1}}' \
-  --reasoning-parser qwen3 \
-  --port 8000
+```bash
+python scripts/build_planning_manifest.py
+python scripts/extract_initial_clips.py
+python scripts/build_rag_index.py
 ```
 
-Optional arguments:
+Build inter-task RAG indexes:
 
-* `--max-model-len 16384`: Maximum model length to avoid OOM. Recommended range: 8192 - 16384.
-* `--media-io-kwargs '{"video": {"num_frames": -1}}'`: Allow overriding FPS per sample.
-* `--reasoning-parser qwen3`: Parse reasoning trace.
-* `--port 8000`: Server port. Change if you encounter `Address already in use` errors.
-
-> [!NOTE]
-> **First startup takes a couple minutes** for model loading and CUDA graph compilation. Subsequent starts are faster with cached graphs.
-
-Once ready, the server will print `Application startup complete.`.
-
-> [!WARNING]
-> **Remember to stop the server when done!** The vllm server consumes significant GPU memory while running. To stop it:
->
-> - If running in foreground: Press `Ctrl+C`
-> - If running in background: Find the process with `ps aux | grep vllm` and kill it with `kill <PID>`
-
-Caption a video ([sample output](assets/outputs/caption.log)):
-
-```shell
-cosmos-reason2-inference online --port 8000 -i prompts/caption.yaml --reasoning --videos assets/sample.mp4 --fps 4
+```bash
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_inter_task" \
+  --top-k 3 \
+  --backend lexical
 ```
 
-Embodied reasoning with verbose output ([sample output](assets/outputs/embodied_reasoning.log)):
+Run Cosmos Reason2 with Transformers:
 
-```shell
-cosmos-reason2-inference online -v --port 8000 -i prompts/embodied_reasoning.yaml --reasoning --images assets/sample.png
+```bash
+python scripts/run_planning_prompts_transformers.py \
+  --manifest "$MANIFEST" \
+  --rag-index "$RAG" \
+  --methods direct hierarchical intra_task_rag \
+  --model nvidia/Cosmos-Reason2-2B \
+  --fps 4 \
+  --out "$OUT"
 ```
 
-To list available arguments:
+Run inter-task RAG:
 
-```shell
-cosmos-reason2-inference online --help
+```bash
+python scripts/run_planning_prompts_transformers.py \
+  --manifest "$MANIFEST" \
+  --rag-index "$INTER_TASK_RAG" \
+  --methods inter_task_rag \
+  --model nvidia/Cosmos-Reason2-2B \
+  --fps 4 \
+  --out "$OUT"
 ```
 
-#### Offline Inference
+Reparse and evaluate:
 
-Temporally caption a video and save the input frames to `outputs/temporal_localization` for debugging ([sample output](assets/outputs/temporal_localization.log)):
+```bash
+python scripts/reparse_generated_plans.py \
+  --predictions "$PREDICTIONS" \
+  --out "$REPARSED"
 
-```shell
-cosmos-reason2-inference offline -v --max-model-len 16384 -i prompts/temporal_localization.yaml --videos assets/sample.mp4 --fps 4 -o outputs/temporal_localization
+python scripts/evaluate_plans.py \
+  --manifest "$MANIFEST" \
+  --predictions "$REPARSED" \
+  --out-csv "$OUT_CSV" \
+  --summary-json "$SUMMARY_JSON" \
+  --human-template-out "$HUMAN_TEMPLATE"
 ```
 
-To list available arguments:
+## Active Files
 
-```shell
-cosmos-reason2-inference offline --help
+Core scripts:
+
+```text
+scripts/agibot_cluster_env.sh
+scripts/agibot_planning_common.py
+scripts/download_agibot_task_archives.py
+scripts/inspect_agibot_metadata.py
+scripts/build_planning_manifest.py
+scripts/extract_initial_clips.py
+scripts/build_rag_index.py
+scripts/build_inter_task_rag_indexes.py
+scripts/run_planning_prompts.py
+scripts/run_planning_prompts_transformers.py
+scripts/reparse_generated_plans.py
+scripts/evaluate_plans.py
 ```
 
-Common arguments:
+Prompt templates:
 
-* `--model nvidia/Cosmos-Reason2-2B`: Model name or path.
+```text
+prompts/planning_direct.yaml
+prompts/planning_hierarchical.yaml
+prompts/planning_rag.yaml
+```
 
-## Post-Training
+## Data Policy
 
-* [TRL](examples/notebooks/README.md)
-* [Cosmos-RL](examples/cosmos_rl/README.md)
+Do not commit AgiBot data, model weights, clips, raw predictions, or planning outputs. The ignored large-data paths are:
 
-## Quantization
+```text
+AgiBotWorld2026/
+cosmos_agibot_planning/
+planning_outputs/
+hf-cache/
+uv-cache/
+```
 
-* [llmcompressor](docs/llmcompressor.md)
+Large data and caches should live under:
 
-## Troubleshooting
-
-See [troubleshooting guide](docs/troubleshooting.md)
-
-## Additional Resources
-
-* [Troubleshooting](docs/troubleshooting.md)
-* [Example prompts](prompts/README.md)
-* Cosmos-Reason2 is based on the Qwen3-VL architecture.
-  * [Qwen3-VL Repository](https://github.com/QwenLM/Qwen3-VL)
-  * [Qwen3-VL vLLM](https://docs.vllm.ai/projects/recipes/en/latest/Qwen/Qwen3-VL.html)
-  * [Qwen3 Documentation](https://qwen.readthedocs.io/en/latest/)
-* vLLM
-  * [Online Serving](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/)
-  * [Offline Inference](https://docs.vllm.ai/en/stable/serving/offline_inference/)
-  * [Multimodal Inputs](https://docs.vllm.ai/en/stable/features/multimodal_inputs/)
-  * [LoRA](https://docs.vllm.ai/en/stable/features/lora/)
-
-## License and Contact
-
-This project will download and install additional third-party open source software projects. Review the license terms of these open source projects before use.
-
-NVIDIA Cosmos source code is released under the [Apache 2 License](https://www.apache.org/licenses/LICENSE-2.0).
-
-NVIDIA Cosmos models are released under the [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license). For a custom license, please contact [cosmos-license@nvidia.com](mailto:cosmos-license@nvidia.com).
+```bash
+/projects/ipl_lab/jaramillocivill.m/
+```
