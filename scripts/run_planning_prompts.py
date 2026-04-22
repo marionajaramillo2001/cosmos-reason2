@@ -23,14 +23,20 @@ DEFAULT_MODEL = "nvidia/Cosmos-Reason2-2B"
 
 
 def load_prompt_template(path: Path) -> str:
-    text = path.read_text(encoding="utf-8")
-    match = re.search(r"user_prompt:\s*\|\n(?P<body>(?:  .*\n?)*)", text)
-    if not match:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    try:
+        start = next(i for i, line in enumerate(lines) if re.match(r"\s*user_prompt:\s*\|", line))
+    except StopIteration:
         raise ValueError(f"Could not parse user_prompt block from {path}")
-    lines = []
-    for line in match.group("body").splitlines():
-        lines.append(line[2:] if line.startswith("  ") else line)
-    return "\n".join(lines).strip()
+    body = []
+    for line in lines[start + 1 :]:
+        if line.startswith("  "):
+            body.append(line[2:])
+        elif not line.strip():
+            body.append("")
+        else:
+            break
+    return "\n".join(body).strip()
 
 
 def load_rag_index(path: Path | None) -> dict[str, list[dict[str, Any]]]:
