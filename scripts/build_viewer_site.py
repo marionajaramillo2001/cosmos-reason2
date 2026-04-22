@@ -73,8 +73,10 @@ video { width: 100%; max-height: 360px; background: #000; border-radius: 6px; }
 .method-card ol { padding-left: 22px; margin: 4px 0; }
 .method-card li { margin: 2px 0; font-size: 14px; }
 .scores { font-size: 13px; color: #333; margin: 6px 0 10px; }
-.scores span { display: inline-block; margin-right: 12px; background: #eef4ff; padding: 2px 6px; border-radius: 4px; }
+.scores span { display: inline-block; margin-right: 8px; margin-bottom: 4px; background: #eef4ff; padding: 2px 6px; border-radius: 4px; }
 .scores .overall { background: #ffe7c2; font-weight: 600; }
+.scores .embedding { background: #e6f2ea; }
+.score-sub { color: #777; font-size: 11px; font-weight: 400; }
 .goal { background: #fff3cd; border-left: 4px solid #f5b400; padding: 10px 14px; border-radius: 4px; }
 .objects { color: #444; font-size: 13px; margin: 6px 0 16px; }
 .ref-steps { background: #eaf7e8; border-left: 4px solid #2c974b; padding: 10px 14px; border-radius: 4px; }
@@ -101,33 +103,122 @@ def expand_globs(values: list[str]) -> list[Path]:
     return sorted({p.expanduser() for p in paths})
 
 
-def load_manifests(paths: list[Path]) -> dict[str, dict[str, Any]]:
-    index: dict[str, dict[str, Any]] = {}
+def task_name_from_path(path: Path) -> str:
+    """Derive a task identifier from a manifest or predictions filename.
+
+    Manifests are named like  task_3400_313498_314085_with_clips.jsonl
+    Predictions are named like task_3400_313498_314085_rank0_<flavor>_predictions.jsonl
+    or task_3400_313498_314085_rank0_all_methods_reparsed.jsonl
+    """
+    name = path.name
+    for suffix in (
+        "_with_clips.jsonl",
+        "_all_methods_reparsed.jsonl",
+        "_predictions.jsonl",
+        "_reparsed.jsonl",
+        ".jsonl",
+    ):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    # Strip trailing rank markers like _rank0_same_task or _rank0 so manifest
+    # and prediction file stems agree on the task key.
+    for marker in ("_rank0_same_task", "_rank0_inter_task", "_rank0"):
+        if name.endswith(marker):
+            name = name[: -len(marker)]
+            break
+    return name
+
+
+def load_manifests(paths: list[Path]) -> dict[tuple[str, str], dict[str, Any]]:
+    """Returns {(task_name, episode_id): row}. Episode IDs repeat across tasks."""
+    index: dict[tuple[str, str], dict[str, Any]] = {}
     for p in paths:
+        task = task_name_from_path(p)
         for row in read_jsonl(p):
             ep = row.get("episode_id")
             if ep:
-                index[ep] = row
+                row = dict(row)
+                row.setdefault("_task_name", task)
+                index[(task, ep)] = row
     return index
 
 
-def load_predictions(paths: list[Path]) -> dict[tuple[str, str], dict[str, Any]]:
-    """Latest row wins if the same (episode_id, method) appears multiple times."""
-    predictions: dict[tuple[str, str], dict[str, Any]] = {}
+def load_predictions(paths: list[Path]) -> dict[tuple[str, str, str], dict[str, Any]]:
+    """Latest row wins on (task_name, episode_id, method)."""
+    predictions: dict[tuple[str, str, str], dict[str, Any]] = {}
     for p in paths:
+        task = task_name_from_path(p)
         for row in read_jsonl(p):
-            key = (row.get("episode_id", ""), row.get("method", ""))
-            if key[0] and key[1]:
-                predictions[key] = row
+            ep = row.get("episode_id", "")
+            method = row.get("method", "")
+            if ep and method:
+                predictions[(task, ep, method)] = row
     return predictions
 
 
-def load_judge_csv(path: Path | None) -> dict[tuple[str, str], dict[str, str]]:
-    if path is None or not path.exists():
+def _attribute_by_episode(
+    csv_paths: list[Path],
+    manifest_lookup: dict[tuple[str, str], dict[str, Any]],
+    source_label: str,
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    """Read per-row CSV(s) and join to (task_name, episode_id, method).
+
+    Each CSV carries episode_id + method. We attribute task_name from the CSV
+    filename when it follows the standard pattern, falling back to manifest
+    lookup for any episode_id that is unambiguous across tasks.
+    """
+    if not csv_paths:
         return {}
-    with path.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        return {(row["episode_id"], row["method"]): row for row in reader}
+
+    ep_to_tasks: dict[str, list[str]] = defaultdict(list)
+    for (task, ep) in manifest_lookup.keys():
+        ep_to_tasks[ep].append(task)
+
+    scored: dict[tuple[str, str, str], dict[str, str]] = {}
+    ambiguous: list[str] = []
+    for path in csv_paths:
+        file_task = task_name_from_path(path)
+        file_task_valid = bool(manifest_lookup) and any(
+            t == file_task for (t, _) in manifest_lookup.keys()
+        )
+        if not path.exists():
+            print(f"[warn] {source_label} CSV not found: {path}")
+            continue
+        with path.open("r", encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                ep = row.get("episode_id", "")
+                method = row.get("method", "")
+                if not ep or not method:
+                    continue
+                if file_task_valid:
+                    scored[(file_task, ep, method)] = row
+                    continue
+                tasks = ep_to_tasks.get(ep, [])
+                if len(tasks) == 1:
+                    scored[(tasks[0], ep, method)] = row
+                elif len(tasks) > 1:
+                    ambiguous.append(f"{ep}/{method}")
+    if ambiguous:
+        print(
+            f"[warn] {len(ambiguous)} {source_label} rows skipped "
+            f"(episode_id appears under multiple tasks and CSV filename didn't disambiguate)"
+        )
+    return scored
+
+
+def load_judge_csv(
+    paths: list[Path],
+    manifest_lookup: dict[tuple[str, str], dict[str, Any]],
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    return _attribute_by_episode(paths, manifest_lookup, "judge")
+
+
+def load_embedding_csv(
+    paths: list[Path],
+    manifest_lookup: dict[tuple[str, str], dict[str, Any]],
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    return _attribute_by_episode(paths, manifest_lookup, "embedding")
 
 
 def link_video(src: Path, dst: Path) -> bool:
@@ -159,24 +250,32 @@ def render_steps(steps: list[str]) -> str:
     return f"<ol>{items}</ol>"
 
 
-def render_scores(score_row: dict[str, str] | None) -> str:
-    if not score_row:
-        return ""
-    rubric_keys = [
-        "goal_completion_mean",
-        "step_ordering_mean",
-        "subgoal_coverage_mean",
-        "no_hallucination_mean",
-        "overall_mean",
-    ]
-    chips = []
-    for key in rubric_keys:
-        val = score_row.get(key, "")
-        if val == "":
-            continue
-        label = key.replace("_mean", "").replace("_", " ")
-        cls = "overall" if key == "overall_mean" else ""
-        chips.append(f'<span class="{cls}">{safe_html(label)}: {safe_html(val)}</span>')
+def render_scores(
+    judge_row: dict[str, str] | None,
+    embedding_row: dict[str, str] | None,
+) -> str:
+    chips: list[str] = []
+    if judge_row:
+        for key in [
+            "goal_completion_mean",
+            "step_ordering_mean",
+            "subgoal_coverage_mean",
+            "no_hallucination_mean",
+            "overall_mean",
+        ]:
+            val = judge_row.get(key, "")
+            if val == "":
+                continue
+            label = "judge " + key.replace("_mean", "").replace("_", " ")
+            cls = "overall" if key == "overall_mean" else ""
+            chips.append(f'<span class="{cls}">{safe_html(label)}: {safe_html(val)}</span>')
+    if embedding_row:
+        for key in ("embedding_step_coverage", "embedding_order_lcs", "object_f1"):
+            val = embedding_row.get(key, "")
+            if val == "":
+                continue
+            label = key.replace("_", " ")
+            chips.append(f'<span class="embedding">{safe_html(label)}: {safe_html(val)}</span>')
     if not chips:
         return ""
     return f'<div class="scores">{"".join(chips)}</div>'
@@ -185,7 +284,8 @@ def render_scores(score_row: dict[str, str] | None) -> str:
 def render_method_card(
     method: str,
     pred: dict[str, Any] | None,
-    score_row: dict[str, str] | None,
+    judge_row: dict[str, str] | None,
+    embedding_row: dict[str, str] | None,
 ) -> str:
     label = METHOD_LABEL.get(method, method)
     if pred is None:
@@ -195,7 +295,7 @@ def render_method_card(
         )
 
     body_parts: list[str] = [f"<h3>{safe_html(label)}</h3>"]
-    body_parts.append(render_scores(score_row))
+    body_parts.append(render_scores(judge_row, embedding_row))
 
     if method == "hierarchical_two_call" and pred.get("expansions"):
         subgoals = pred.get("subgoals") or []
@@ -225,9 +325,11 @@ def render_method_card(
 
 def render_episode_page(
     episode_id: str,
+    task_name: str,
     manifest_row: dict[str, Any],
     preds_by_method: dict[str, dict[str, Any]],
-    scores_by_method: dict[str, dict[str, str]],
+    judge_by_method: dict[str, dict[str, str]],
+    embedding_by_method: dict[str, dict[str, str]],
     input_video_rel: str | None,
     reference_video_rel: str | None,
 ) -> str:
@@ -255,7 +357,12 @@ def render_episode_page(
     ordered_methods.extend(sorted(m for m in preds_by_method if m not in METHOD_ORDER))
 
     method_cards = "\n".join(
-        render_method_card(m, preds_by_method.get(m), scores_by_method.get(m))
+        render_method_card(
+            m,
+            preds_by_method.get(m),
+            judge_by_method.get(m),
+            embedding_by_method.get(m),
+        )
         for m in ordered_methods
     )
 
@@ -263,13 +370,13 @@ def render_episode_page(
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Episode {safe_html(episode_id)}</title>
+<title>{safe_html(task_name)} / {safe_html(episode_id)}</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <header>
   <a href="../index.html">&larr; back to index</a>
-  <h1>Episode {safe_html(episode_id)}</h1>
+  <h1>{safe_html(task_name)} &middot; Episode {safe_html(episode_id)}</h1>
 </header>
 
 <h2>Task goal</h2>
@@ -295,35 +402,43 @@ def render_episode_page(
 
 def render_index_page(
     episodes: list[dict[str, Any]],
-    scores_by_ep_method: dict[tuple[str, str], dict[str, str]],
+    judge_scores: dict[tuple[str, str, str], dict[str, str]],
+    embedding_scores: dict[tuple[str, str, str], dict[str, str]],
     methods_present: list[str],
 ) -> str:
     by_task: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for ep in episodes:
-        by_task[ep.get("task_key", "unknown")].append(ep)
+        by_task[ep.get("task_name", "unknown")].append(ep)
 
     sections: list[str] = []
-    for task_key in sorted(by_task.keys()):
+    for task_name in sorted(by_task.keys()):
         rows_html: list[str] = []
-        header_cells = "".join(
-            f"<th>{safe_html(METHOD_LABEL.get(m, m))} overall</th>"
-            for m in methods_present
-        )
-        for ep in sorted(by_task[task_key], key=lambda e: e["episode_id"]):
+        header_cells_parts = []
+        for m in methods_present:
+            label = safe_html(METHOD_LABEL.get(m, m))
+            header_cells_parts.append(
+                f'<th>{label}<br><span class="score-sub">judge / emb cov</span></th>'
+            )
+        header_cells = "".join(header_cells_parts)
+        for ep in sorted(by_task[task_name], key=lambda e: e["episode_id"]):
             score_cells = []
             for m in methods_present:
-                row = scores_by_ep_method.get((ep["episode_id"], m))
+                j = judge_scores.get((task_name, ep["episode_id"], m))
+                e = embedding_scores.get((task_name, ep["episode_id"], m))
+                j_val = j.get("overall_mean", "") if j else ""
+                e_val = e.get("embedding_step_coverage", "") if e else ""
                 score_cells.append(
-                    f"<td>{safe_html(row.get('overall_mean', '')) if row else ''}</td>"
+                    f"<td><strong>{safe_html(j_val)}</strong>"
+                    f'<br><span class="score-sub">{safe_html(e_val)}</span></td>'
                 )
             rows_html.append(
-                f'<tr><td><a href="episodes/{safe_html(ep["episode_id"])}.html">'
+                f'<tr><td><a href="episodes/{safe_html(ep["page_slug"])}.html">'
                 f'{safe_html(ep["episode_id"])}</a></td>'
                 f'<td>{safe_html(ep.get("goal", ""))}</td>'
                 f'{"".join(score_cells)}</tr>'
             )
         sections.append(
-            f"<h2>{safe_html(task_key)}</h2>"
+            f"<h2>{safe_html(task_name)}</h2>"
             f'<table class="index"><thead><tr><th>Episode</th><th>Goal</th>{header_cells}</tr></thead>'
             f'<tbody>{"".join(rows_html)}</tbody></table>'
         )
@@ -345,19 +460,22 @@ def render_index_page(
 """
 
 
-def infer_task_key(episode_id: str, manifest_row: dict[str, Any]) -> str:
-    task_id = manifest_row.get("task_id")
-    if task_id:
-        return str(task_id)
-    # Fall back to prefix parsing of the manifest filename convention used elsewhere.
-    return episode_id.split("_", 1)[0] if "_" in episode_id else "unknown"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifests", nargs="+", required=True, help="Manifest JSONL paths or glob patterns.")
     parser.add_argument("--predictions", nargs="+", required=True, help="Prediction JSONL paths or glob patterns (merged reparsed files work well).")
-    parser.add_argument("--judge-csv", type=Path, default=None, help="Optional Prometheus judge per-row CSV from judge_plans_prometheus.py.")
+    parser.add_argument(
+        "--judge-csv",
+        nargs="*",
+        default=[],
+        help="Optional Prometheus judge per-row CSV(s) from judge_plans_prometheus.py. Accepts glob patterns.",
+    )
+    parser.add_argument(
+        "--embedding-csv",
+        nargs="*",
+        default=[],
+        help="Optional embedding-based per-row CSV(s) from evaluate_plans_embedding.py. Accepts glob patterns.",
+    )
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--videos-subdir", default="videos")
     parser.add_argument("--copy-videos", action="store_true", help="Copy video files instead of symlinking.")
@@ -372,7 +490,10 @@ def main() -> None:
 
     manifests = load_manifests(manifest_paths)
     predictions = load_predictions(prediction_paths)
-    scores = load_judge_csv(args.judge_csv)
+    judge_paths = expand_globs(args.judge_csv) if args.judge_csv else []
+    embedding_paths = expand_globs(args.embedding_csv) if args.embedding_csv else []
+    scores = load_judge_csv(judge_paths, manifests)
+    embedding_scores = load_embedding_csv(embedding_paths, manifests)
 
     out_dir = args.out_dir.expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -380,57 +501,75 @@ def main() -> None:
     (out_dir / args.videos_subdir).mkdir(exist_ok=True)
     (out_dir / "style.css").write_text(STYLE_CSS, encoding="utf-8")
 
-    preds_by_episode: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
-    for (episode_id, method), pred in predictions.items():
-        preds_by_episode[episode_id][method] = pred
+    # Group predictions by (task_name, episode_id), collecting methods.
+    preds_by_key: dict[tuple[str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for (task_name, episode_id, method), pred in predictions.items():
+        preds_by_key[(task_name, episode_id)][method] = pred
 
     methods_present = sorted(
-        {m for per_method in preds_by_episode.values() for m in per_method.keys()},
+        {m for per_method in preds_by_key.values() for m in per_method.keys()},
         key=lambda m: (METHOD_ORDER.index(m) if m in METHOD_ORDER else len(METHOD_ORDER), m),
     )
 
     index_rows: list[dict[str, Any]] = []
-    for episode_id, preds_by_method in sorted(preds_by_episode.items()):
-        manifest_row = manifests.get(episode_id)
+    orphan_keys: list[tuple[str, str]] = []
+    for (task_name, episode_id), preds_by_method in sorted(preds_by_key.items()):
+        manifest_row = manifests.get((task_name, episode_id))
         if manifest_row is None:
-            print(f"[skip] no manifest row for {episode_id}")
+            orphan_keys.append((task_name, episode_id))
             continue
 
+        page_slug = f"{task_name}__{episode_id}"
         input_src = Path(manifest_row.get("initial_video") or manifest_row.get("clip_path") or "")
         reference_src = Path(manifest_row.get("video_path") or "")
 
         input_rel: str | None = None
         reference_rel: str | None = None
         if input_src and str(input_src):
-            input_dst = out_dir / args.videos_subdir / f"{episode_id}_input{input_src.suffix or '.mp4'}"
+            input_dst = out_dir / args.videos_subdir / f"{page_slug}_input{input_src.suffix or '.mp4'}"
             if link_video(input_src, input_dst):
                 input_rel = f"../{args.videos_subdir}/{input_dst.name}"
         if reference_src and str(reference_src):
-            ref_dst = out_dir / args.videos_subdir / f"{episode_id}_reference{reference_src.suffix or '.mp4'}"
+            ref_dst = out_dir / args.videos_subdir / f"{page_slug}_reference{reference_src.suffix or '.mp4'}"
             if link_video(reference_src, ref_dst):
                 reference_rel = f"../{args.videos_subdir}/{ref_dst.name}"
 
-        scores_for_ep = {m: scores.get((episode_id, m), {}) for m in preds_by_method.keys()}
+        judge_for_ep = {
+            m: scores.get((task_name, episode_id, m), {}) for m in preds_by_method.keys()
+        }
+        emb_for_ep = {
+            m: embedding_scores.get((task_name, episode_id, m), {}) for m in preds_by_method.keys()
+        }
 
         page = render_episode_page(
             episode_id=episode_id,
+            task_name=task_name,
             manifest_row=manifest_row,
             preds_by_method=preds_by_method,
-            scores_by_method=scores_for_ep,
+            judge_by_method=judge_for_ep,
+            embedding_by_method=emb_for_ep,
             input_video_rel=input_rel,
             reference_video_rel=reference_rel,
         )
-        (out_dir / "episodes" / f"{episode_id}.html").write_text(page, encoding="utf-8")
+        (out_dir / "episodes" / f"{page_slug}.html").write_text(page, encoding="utf-8")
 
         index_rows.append(
             {
                 "episode_id": episode_id,
+                "task_name": task_name,
+                "page_slug": page_slug,
                 "goal": manifest_row.get("high_level_task", ""),
-                "task_key": infer_task_key(episode_id, manifest_row),
             }
         )
 
-    index_html = render_index_page(index_rows, scores, methods_present)
+    if orphan_keys:
+        print(f"[skip] {len(orphan_keys)} (task, episode) pairs had predictions but no manifest match:")
+        for t, e in orphan_keys[:10]:
+            print(f"    {t} / {e}")
+        if len(orphan_keys) > 10:
+            print(f"    ... and {len(orphan_keys) - 10} more")
+
+    index_html = render_index_page(index_rows, scores, embedding_scores, methods_present)
     (out_dir / "index.html").write_text(index_html, encoding="utf-8")
 
     print(f"Wrote {len(index_rows)} episode pages to {out_dir}/episodes/")
