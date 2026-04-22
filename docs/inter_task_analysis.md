@@ -136,6 +136,8 @@ python scripts/build_rag_index.py \
   --backend lexical
 ```
 
+This produces the same-task retrieval condition. Use method name `intra_task_rag` for this index when running inference, so it is distinguishable from `inter_task_rag`.
+
 Then run Cosmos Reason2 with the Transformers runner on an H200 node for each task manifest.
 
 ## 6. Analysis Shape

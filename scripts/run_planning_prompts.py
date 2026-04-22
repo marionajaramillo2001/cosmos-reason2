@@ -17,9 +17,12 @@ from agibot_planning_common import read_jsonl, write_jsonl
 METHOD_TO_PROMPT = {
     "direct": "prompts/planning_direct.yaml",
     "hierarchical": "prompts/planning_hierarchical.yaml",
+    "intra_task_rag": "prompts/planning_rag.yaml",
+    # Backward-compatible alias for older prediction runs.
     "rag": "prompts/planning_rag.yaml",
     "inter_task_rag": "prompts/planning_rag.yaml",
 }
+RAG_METHODS = {"rag", "intra_task_rag", "inter_task_rag"}
 DEFAULT_MODEL = "nvidia/Cosmos-Reason2-2B"
 
 
@@ -132,7 +135,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--rag-index", type=Path, default=None)
-    parser.add_argument("--methods", nargs="+", choices=sorted(METHOD_TO_PROMPT), default=["direct", "hierarchical", "rag"])
+    parser.add_argument("--methods", nargs="+", choices=sorted(METHOD_TO_PROMPT), default=["direct", "hierarchical", "intra_task_rag"])
     parser.add_argument("--host", default="localhost")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--model", default=DEFAULT_MODEL)
@@ -154,7 +157,7 @@ def main() -> None:
         if not video_path:
             continue
         for method in args.methods:
-            retrieved = rag_index.get(row["episode_id"], []) if method in {"rag", "inter_task_rag"} else []
+            retrieved = rag_index.get(row["episode_id"], []) if method in RAG_METHODS else []
             prompt = templates[method].format(
                 goal=row.get("high_level_task", ""),
                 objects=", ".join(row.get("objects", [])) or "unknown",

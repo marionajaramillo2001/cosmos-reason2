@@ -138,7 +138,7 @@ Run the three prompting methods:
 python scripts/run_planning_prompts.py \
   --manifest "$EXP_ROOT/manifest_with_clips.jsonl" \
   --rag-index "$EXP_ROOT/rag_index.jsonl" \
-  --methods direct hierarchical rag \
+  --methods direct hierarchical intra_task_rag \
   --port 8000 \
   --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
@@ -151,7 +151,7 @@ If vLLM fails because of CUDA attention-kernel compatibility, use direct Transfo
 python scripts/run_planning_prompts_transformers.py \
   --manifest "$EXP_ROOT/manifest_with_clips.jsonl" \
   --rag-index "$EXP_ROOT/rag_index.jsonl" \
-  --methods direct hierarchical rag \
+  --methods direct hierarchical intra_task_rag \
   --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
   --out "$EXP_ROOT/predictions.jsonl"

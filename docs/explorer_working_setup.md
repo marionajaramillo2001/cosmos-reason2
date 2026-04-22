@@ -275,7 +275,7 @@ head -1 "$EXP_ROOT/rag_index_task_3401.jsonl" > "$EXP_ROOT/rag_index_task_3401_o
 python scripts/run_planning_prompts_transformers.py \
   --manifest "$EXP_ROOT/manifest_task_3401_one.jsonl" \
   --rag-index "$EXP_ROOT/rag_index_task_3401_one.jsonl" \
-  --methods direct hierarchical rag \
+  --methods direct hierarchical intra_task_rag \
   --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
   --out "$EXP_ROOT/predictions_task_3401_smoke.jsonl"
@@ -301,7 +301,7 @@ Run the full 14-episode pilot:
 python scripts/run_planning_prompts_transformers.py \
   --manifest "$EXP_ROOT/manifest_task_3401_with_clips.jsonl" \
   --rag-index "$EXP_ROOT/rag_index_task_3401.jsonl" \
-  --methods direct hierarchical rag \
+  --methods direct hierarchical intra_task_rag \
   --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
   --out "$EXP_ROOT/predictions_task_3401.jsonl"
@@ -311,7 +311,7 @@ Expected result:
 
 ```text
 42 predictions
-14 episodes x 3 methods
+14 episodes x 3 methods: direct, hierarchical, intra_task_rag
 ```
 
 ## 5. Reparse and Evaluate

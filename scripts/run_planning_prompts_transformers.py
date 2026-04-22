@@ -18,6 +18,7 @@ from agibot_planning_common import read_jsonl, write_jsonl
 from run_planning_prompts import (
     DEFAULT_MODEL,
     METHOD_TO_PROMPT,
+    RAG_METHODS,
     format_reference_examples,
     load_prompt_template,
     load_rag_index,
@@ -122,7 +123,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--rag-index", type=Path, default=None)
-    parser.add_argument("--methods", nargs="+", choices=sorted(METHOD_TO_PROMPT), default=["direct", "hierarchical", "rag"])
+    parser.add_argument("--methods", nargs="+", choices=sorted(METHOD_TO_PROMPT), default=["direct", "hierarchical", "intra_task_rag"])
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     parser.add_argument("--fps", type=float, default=4.0)
@@ -151,7 +152,7 @@ def main() -> None:
         if not video_path:
             continue
         for method in args.methods:
-            retrieved = rag_index.get(row["episode_id"], []) if method in {"rag", "inter_task_rag"} else []
+            retrieved = rag_index.get(row["episode_id"], []) if method in RAG_METHODS else []
             prompt = templates[method].format(
                 goal=row.get("high_level_task", ""),
                 objects=", ".join(row.get("objects", [])) or "unknown",
