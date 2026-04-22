@@ -116,7 +116,14 @@ def task_name_from_path(path: Path) -> str:
         "_all_methods_reparsed.jsonl",
         "_predictions.jsonl",
         "_reparsed.jsonl",
+        "_auto_eval.csv",
+        "_auto_eval_summary.json",
+        "_judge.csv",
+        "_judge_summary.json",
+        "_judge_details.jsonl",
         ".jsonl",
+        ".csv",
+        ".json",
     ):
         if name.endswith(suffix):
             name = name[: -len(suffix)]
@@ -425,8 +432,8 @@ def render_index_page(
             for m in methods_present:
                 j = judge_scores.get((task_name, ep["episode_id"], m))
                 e = embedding_scores.get((task_name, ep["episode_id"], m))
-                j_val = j.get("overall_mean", "") if j else ""
-                e_val = e.get("embedding_step_coverage", "") if e else ""
+                j_val = (j.get("overall_mean", "") if j else "") or "nan"
+                e_val = (e.get("embedding_step_coverage", "") if e else "") or "nan"
                 score_cells.append(
                     f"<td><strong>{safe_html(j_val)}</strong>"
                     f'<br><span class="score-sub">{safe_html(e_val)}</span></td>'
