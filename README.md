@@ -17,6 +17,12 @@ intra_task_rag
 inter_task_rag
 ```
 
+The current preferred evaluation set is one aligned within-task episode rank across tasks. For the first comparison, use `episode_rank=0`, giving:
+
+```text
+10 tasks x 4 methods = 40 generated predictions
+```
+
 ## Current Workflow
 
 The active Explorer runbooks are:
@@ -91,6 +97,25 @@ python scripts/run_planning_prompts_transformers.py \
   --out "$OUT"
 ```
 
+Run the aligned episode-rank comparison:
+
+```bash
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --top-k 3 \
+  --episode-rank 0 \
+  --pool-same-rank-only \
+  --backend lexical
+
+python scripts/run_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --intra-rag-dir "$EXP_ROOT/rag" \
+  --inter-rag-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --out-dir "$EXP_ROOT/predictions_rank0" \
+  --episode-rank 0
+```
+
 Reparse and evaluate:
 
 ```bash
@@ -119,6 +144,7 @@ scripts/build_planning_manifest.py
 scripts/extract_initial_clips.py
 scripts/build_rag_index.py
 scripts/build_inter_task_rag_indexes.py
+scripts/run_episode_rank_comparison.py
 scripts/run_planning_prompts.py
 scripts/run_planning_prompts_transformers.py
 scripts/reparse_generated_plans.py

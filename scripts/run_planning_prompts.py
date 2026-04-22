@@ -142,12 +142,18 @@ def main() -> None:
     parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--fps", type=float, default=4.0)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--episode-rank", type=int, default=None, help="Run only this within-manifest episode rank after sorting by episode_id.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     base_url = f"http://{args.host}:{args.port}/v1"
     model = "DRY_RUN" if args.dry_run else get_model(base_url, args.model)
     rows = [row for row in read_jsonl(args.manifest.expanduser()) if row.get("include", True)]
+    rows.sort(key=lambda row: row.get("episode_id", ""))
+    if args.episode_rank is not None:
+        if args.episode_rank < 0 or args.episode_rank >= len(rows):
+            raise SystemExit(f"episode-rank {args.episode_rank} is out of range for {args.manifest}")
+        rows = [rows[args.episode_rank]]
     rag_index = load_rag_index(args.rag_index)
     templates = {method: load_prompt_template(Path(METHOD_TO_PROMPT[method])) for method in args.methods}
     outputs = []

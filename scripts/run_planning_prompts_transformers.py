@@ -129,6 +129,7 @@ def main() -> None:
     parser.add_argument("--fps", type=float, default=4.0)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--episode-rank", type=int, default=None, help="Run only this within-manifest episode rank after sorting by episode_id.")
     parser.add_argument("--dtype", choices=("auto", "float16", "bfloat16"), default="float16")
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--attn-implementation", default="sdpa")
@@ -138,6 +139,11 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = [row for row in read_jsonl(args.manifest.expanduser()) if row.get("include", True)]
+    rows.sort(key=lambda row: row.get("episode_id", ""))
+    if args.episode_rank is not None:
+        if args.episode_rank < 0 or args.episode_rank >= len(rows):
+            raise SystemExit(f"episode-rank {args.episode_rank} is out of range for {args.manifest}")
+        rows = [rows[args.episode_rank]]
     if args.limit:
         rows = rows[: args.limit]
     rag_index = load_rag_index(args.rag_index)

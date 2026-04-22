@@ -77,12 +77,15 @@ def expand_manifest_args(values: list[str]) -> list[Path]:
 def load_manifest_rows(path: Path) -> list[dict[str, Any]]:
     task_key = path.name.removesuffix("_with_clips.jsonl").removesuffix(".jsonl")
     rows = []
-    for index, row in enumerate(read_jsonl(path)):
+    manifest_rows = [row for row in read_jsonl(path) if row.get("include", True)]
+    manifest_rows.sort(key=lambda row: row.get("episode_id", ""))
+    for index, row in enumerate(manifest_rows):
         if not row.get("include", True):
             continue
         item = dict(row)
         item["_task_key"] = task_key
         item["_manifest_path"] = str(path)
+        item["_episode_rank"] = index
         item["_row_key"] = f"{task_key}:{item.get('episode_id', index)}"
         rows.append(item)
     return rows
@@ -122,6 +125,8 @@ def main() -> None:
     parser.add_argument("--manifests", nargs="+", required=True, help="Manifest paths or glob patterns.")
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--episode-rank", type=int, default=None, help="Only build query rows for this within-task episode rank.")
+    parser.add_argument("--pool-same-rank-only", action="store_true", help="Retrieve only examples with the same within-task episode rank.")
     parser.add_argument("--backend", choices=("auto", "sentence-transformers", "lexical"), default="auto")
     parser.add_argument("--embedding-model", default="sentence-transformers/all-MiniLM-L6-v2")
     args = parser.parse_args()
@@ -147,8 +152,16 @@ def main() -> None:
     model, vectors, counts = build_vectors(all_rows, args.backend, args.embedding_model)
     args.out_dir.expanduser().mkdir(parents=True, exist_ok=True)
 
+    suffix = "_inter_task"
+    if args.episode_rank is not None:
+        suffix = f"_rank{args.episode_rank}_inter_task"
+
     for task_key, queries in sorted(rows_by_task.items()):
+        if args.episode_rank is not None:
+            queries = [row for row in queries if row["_episode_rank"] == args.episode_rank]
         pool = [row for row in all_rows if row["_task_key"] != task_key]
+        if args.pool_same_rank_only and args.episode_rank is not None:
+            pool = [row for row in pool if row["_episode_rank"] == args.episode_rank]
         out_rows = []
         for query in queries:
             scored = []
@@ -174,7 +187,7 @@ def main() -> None:
                 )
             out_rows.append({"query_episode_id": query["episode_id"], "retrieved_examples": retrieved})
 
-        out_path = args.out_dir.expanduser() / f"{task_key}_inter_task.jsonl"
+        out_path = args.out_dir.expanduser() / f"{task_key}{suffix}.jsonl"
         write_jsonl(out_path, out_rows)
         print(f"Wrote inter-task RAG index for {task_key}: {out_path}")
 

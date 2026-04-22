@@ -122,6 +122,20 @@ python scripts/build_inter_task_rag_indexes.py \
   --backend lexical
 ```
 
+For the current aligned rank-0 experiment, build rank-restricted inter-task RAG instead:
+
+```bash
+mkdir -p "$EXP_ROOT/rag_inter_task_rank0"
+
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --top-k 3 \
+  --episode-rank 0 \
+  --pool-same-rank-only \
+  --backend lexical
+```
+
 ## Inference
 
 Run Cosmos Reason2 through the Transformers runner. The active method names are:
@@ -155,6 +169,17 @@ python scripts/run_planning_prompts_transformers.py \
   --model nvidia/Cosmos-Reason2-2B \
   --fps 4 \
   --out "$EXP_ROOT/predictions_inter_task_rag/${NAME}_inter_task_rag_predictions.jsonl"
+```
+
+Aligned rank-0 comparison:
+
+```bash
+python scripts/run_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --intra-rag-dir "$EXP_ROOT/rag" \
+  --inter-rag-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --out-dir "$EXP_ROOT/predictions_rank0" \
+  --episode-rank 0
 ```
 
 ## Evaluation

@@ -176,7 +176,68 @@ python scripts/run_planning_prompts_transformers.py \
   --out "$EXP_ROOT/predictions_inter_task_rag/${NAME}_inter_task_rag_predictions.jsonl"
 ```
 
-## 6. Analysis Shape
+## 6. Aligned Episode-Rank Comparison
+
+For the current inter-task experiment, use one aligned within-task episode rank across the 10 tasks. For rank 0, that gives:
+
+```text
+10 tasks x 4 methods = 40 generated predictions
+```
+
+Build an inter-task RAG index where each rank-0 query can retrieve only rank-0 examples from the other tasks:
+
+```bash
+mkdir -p "$EXP_ROOT/rag_inter_task_rank0"
+
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --top-k 3 \
+  --episode-rank 0 \
+  --pool-same-rank-only \
+  --backend lexical
+```
+
+Smoke test one task:
+
+```bash
+python scripts/run_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --intra-rag-dir "$EXP_ROOT/rag" \
+  --inter-rag-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --out-dir "$EXP_ROOT/predictions_rank0_smoke" \
+  --episode-rank 0 \
+  --limit-tasks 1
+```
+
+Run all tasks:
+
+```bash
+python scripts/run_episode_rank_comparison.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --intra-rag-dir "$EXP_ROOT/rag" \
+  --inter-rag-dir "$EXP_ROOT/rag_inter_task_rank0" \
+  --out-dir "$EXP_ROOT/predictions_rank0" \
+  --episode-rank 0
+```
+
+The outputs are split by retrieval condition:
+
+```text
+$EXP_ROOT/predictions_rank0/same_task/*_rank0_same_task_predictions.jsonl
+$EXP_ROOT/predictions_rank0/inter_task/*_rank0_inter_task_predictions.jsonl
+```
+
+Each task should produce four rows total:
+
+```text
+direct
+hierarchical
+intra_task_rag
+inter_task_rag
+```
+
+## 7. Analysis Shape
 
 Use the per-task evaluation CSVs in two views:
 
