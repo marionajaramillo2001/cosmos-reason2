@@ -9,13 +9,11 @@
 #   - Don't list subgoals in order.
 #   - One sentence, <= ~25 words.
 
-task_3400_313498_314085: ""
-task_3401_352507_353983: ""
-task_3402_373661_375235: ""
-task_3404_305627_321730: ""
-task_3405_389111_389369: ""
-task_3477_248923_250431: ""
-task_3641_304773_306558: ""
-task_3705_312820_313211: ""
-task_3777_325306_327364: ""
-task_4053_368961_369296: ""
+task_3400_313498_314085: "Place the yellow triple-cup yogurt from the chilled display case and the blue boxed yogurt into the shopping cart."
+task_3401_352507_353983: "Place two green and three pink bottled dish cleaners from the shelf into the shopping cart."
+task_3402_373661_375235: "Put the green bottled toilet water and the yellow bottled toilet water from the shelf into the shopping cart."
+task_3404_305627_321730: "Place the red and white bagged disposable cups from the shelf into the shopping cart."
+task_3405_389111_389369: "Place two yellow-capped bottled soy sauce from the shelf into the shopping cart for two consecutive times."
+task_3705_312820_313211: "Place the pink and yellow bagged items from the shopping cart into the freezer"
+task_3777_325306_327364: "Both arms work together to fill the popcorn bucket on the table with popcorn for two consecutive times."
+task_4053_368961_369296: "Both arms work together to hand the flyer to the customer five times"
