@@ -2,12 +2,12 @@
 #SBATCH --job-name=cosmos-planning-full
 #SBATCH --output=logs/pipeline_%j.out
 #SBATCH --error=logs/pipeline_%j.err
-#SBATCH --time=4:00:00
+#SBATCH --time=5:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:a100:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --mem=8G
+#SBATCH --mem=32G
 
 set -eo pipefail
 
