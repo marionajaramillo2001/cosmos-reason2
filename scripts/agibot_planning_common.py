@@ -282,6 +282,29 @@ def extract_task_frames(info: dict[str, Any], annotations: dict[str, Any], episo
     return []
 
 
+def extract_dual_task_frame_goal(info: dict[str, Any], episode_id: str) -> str:
+    """Return the first Task Frame frame_detail.comment from the dual stream only.
+
+    Unlike extract_task_frames (which joins all unique subtask descriptions),
+    this returns the single chronologically-first comment so it can serve as a
+    clean one-sentence high_level_task goal.
+    """
+    for source_key in ("key_frame", "key_frames"):
+        source = info.get(source_key)
+        ep_data = lookup_by_episode(source, episode_id)
+        if not isinstance(ep_data, dict):
+            continue
+        for entry in sort_segment_entries(as_list(ep_data.get("dual"))):
+            if not isinstance(entry, dict):
+                continue
+            if "task" not in str(entry.get("frame_type_name", "")).lower():
+                continue
+            comment = clean_text((entry.get("frame_detail") or {}).get("comment", ""))
+            if comment:
+                return comment
+    return ""
+
+
 def extract_objects(*values: Any) -> list[str]:
     objects = []
     for value in values:
