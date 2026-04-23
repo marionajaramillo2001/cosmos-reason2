@@ -20,9 +20,6 @@ mkdir -p logs
 source scripts/agibot_cluster_env.sh
 
 export EXP_ROOT=/projects/ipl_lab/jaramillocivill.m/cosmos-reason2/cosmos_agibot_planning
-export HF_HOME="$EXP_ROOT/hf_cache"
-export TRANSFORMERS_OFFLINE=0
-mkdir -p "$HF_HOME"
 
 TASKS=(
   task_3400_313498_314085
@@ -60,29 +57,39 @@ python scripts/patch_manifest_goals.py \
 echo "=== STAGE 1.5: RAG indexes ==="
 mkdir -p "$EXP_ROOT"/rag_indexes/intra "$EXP_ROOT"/rag_indexes/inter
 
-# intra-task: one index per task (same task, other episodes — since you only have
-# episode_000000 per task this pool will be empty; kept for pipeline consistency).
 for T in "${TASKS[@]}"; do
   IDX="$EXP_ROOT/rag_indexes/intra/${T}_rank0.jsonl"
+  if [[ -s "$IDX" ]]; then
+    echo "[skip] intra RAG $T"
+    continue
+  fi
   python scripts/build_rag_index.py \
     --manifest "$EXP_ROOT/manifests/${T}_with_clips.jsonl" \
     --out "$IDX" \
     --top-k 3
 done
 
-# inter-task: pool across all tasks, one output file per task inside --out-dir
-python scripts/build_inter_task_rag_indexes.py \
-  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
-  --out-dir "$EXP_ROOT/rag_indexes/inter" \
-  --top-k 3 \
-  --episode-rank 0
+INTER_DONE="$EXP_ROOT/rag_indexes/inter/task_4053_368961_369296_rank0_inter_task.jsonl"
+if [[ -s "$INTER_DONE" ]]; then
+  echo "[skip] inter RAG (all tasks)"
+else
+  python scripts/build_inter_task_rag_indexes.py \
+    --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+    --out-dir "$EXP_ROOT/rag_indexes/inter" \
+    --top-k 3 \
+    --episode-rank 0
+fi
+
+# ------------------------------------------------------------------
+# 2. Predictions (Cosmos Reason 2B, 4 methods per task)
+# ------------------------------------------------------------------
 
 echo "=== STAGE 2: predictions ==="
 for T in "${TASKS[@]}"; do
   MANIFEST="$EXP_ROOT/manifests/${T}_with_clips.jsonl"
   OUT_PRED="$OUT/predictions/${T}_rank0_all_methods_predictions.jsonl"
   INTRA_IDX="$EXP_ROOT/rag_indexes/intra/${T}_rank0.jsonl"
-  INTER_IDX="$EXP_ROOT/rag_indexes/inter/${T}_rank0_inter_task_rag_index.jsonl"
+  INTER_IDX="$EXP_ROOT/rag_indexes/inter/${T}_rank0_inter_task.jsonl"
 
   if [[ -s "$OUT_PRED" ]]; then
     echo "[skip] $T predictions exist"
