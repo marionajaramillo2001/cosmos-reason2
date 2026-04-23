@@ -17,7 +17,7 @@ set -eo pipefail
 cd /projects/ipl_lab/jaramillocivill.m/cosmos-reason2
 mkdir -p logs
 
-source .venv/bin/activate || { echo "venv activation failed"; exit 1; }
+source scripts/agibot_cluster_env.sh
 
 export EXP_ROOT=/projects/ipl_lab/jaramillocivill.m/cosmos-reason2/cosmos_agibot_planning
 export HF_HOME="$EXP_ROOT/hf_cache"
