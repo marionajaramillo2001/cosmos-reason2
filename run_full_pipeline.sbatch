@@ -17,7 +17,6 @@ set -eo pipefail
 cd /projects/ipl_lab/jaramillocivill.m/cosmos-reason2
 mkdir -p logs
 
-# TODO: source your venv exactly as you do interactively
 source .venv/bin/activate || { echo "venv activation failed"; exit 1; }
 
 export EXP_ROOT=/projects/ipl_lab/jaramillocivill.m/cosmos-reason2/cosmos_agibot_planning
@@ -39,9 +38,6 @@ TASKS=(
 OUT=planning_outputs/rank0_all
 mkdir -p $OUT/predictions $OUT/reparsed $OUT/embedding $OUT/judge
 
-# TODO: confirm these RAG index paths from your prior runs
-INTRA_RAG_INDEX="$EXP_ROOT/rag_indexes/intra_task_rank0.jsonl"
-INTER_RAG_INDEX="$EXP_ROOT/rag_indexes/inter_task_rank0.jsonl"
 
 # ------------------------------------------------------------------
 # 1. Restore + patch manifests (runs fast, idempotent)
@@ -59,23 +55,61 @@ python scripts/patch_manifest_goals.py \
   --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl
 
 # ------------------------------------------------------------------
-# 2. Predictions (Cosmos Reason 2B, 4 methods per task)
+# 1.5 Rebuild RAG indexes against the patched goals
 # ------------------------------------------------------------------
+echo "=== STAGE 1.5: RAG indexes ==="
+mkdir -p "$EXP_ROOT"/rag_indexes/intra "$EXP_ROOT"/rag_indexes/inter
+
+# intra-task: one index per task (same task, other episodes — since you only have
+# episode_000000 per task this pool will be empty; kept for pipeline consistency).
+for T in "${TASKS[@]}"; do
+  IDX="$EXP_ROOT/rag_indexes/intra/${T}_rank0.jsonl"
+  python scripts/build_rag_index.py \
+    --manifest "$EXP_ROOT/manifests/${T}_with_clips.jsonl" \
+    --out "$IDX" \
+    --top-k 3
+done
+
+# inter-task: pool across all tasks, one output file per task inside --out-dir
+python scripts/build_inter_task_rag_indexes.py \
+  --manifests "$EXP_ROOT"/manifests/*_with_clips.jsonl \
+  --out-dir "$EXP_ROOT/rag_indexes/inter" \
+  --top-k 3 \
+  --episode-rank 0
+
 echo "=== STAGE 2: predictions ==="
 for T in "${TASKS[@]}"; do
   MANIFEST="$EXP_ROOT/manifests/${T}_with_clips.jsonl"
   OUT_PRED="$OUT/predictions/${T}_rank0_all_methods_predictions.jsonl"
+  INTRA_IDX="$EXP_ROOT/rag_indexes/intra/${T}_rank0.jsonl"
+  INTER_IDX="$EXP_ROOT/rag_indexes/inter/${T}_rank0_inter_task_rag_index.jsonl"
+
   if [[ -s "$OUT_PRED" ]]; then
     echo "[skip] $T predictions exist"
     continue
   fi
-  echo "[run ] predictions $T"
+
+  # Run intra methods (direct + hierarchical don't actually use the index, but the
+  # planner accepts them alongside intra_task_rag with the same --rag-index arg).
+  PART1="$OUT/predictions/${T}_rank0_part1_intra.jsonl"
   python scripts/run_planning_prompts_transformers.py \
     --manifest "$MANIFEST" \
-    --methods direct hierarchical intra_task_rag inter_task_rag \
-    --rag-index "$INTRA_RAG_INDEX" \
+    --methods direct hierarchical intra_task_rag \
+    --rag-index "$INTRA_IDX" \
     --episode-rank 0 \
-    --out "$OUT_PRED"
+    --out "$PART1"
+
+  # Inter-task needs the cross-task index.
+  PART2="$OUT/predictions/${T}_rank0_part2_inter.jsonl"
+  python scripts/run_planning_prompts_transformers.py \
+    --manifest "$MANIFEST" \
+    --methods inter_task_rag \
+    --rag-index "$INTER_IDX" \
+    --episode-rank 0 \
+    --out "$PART2"
+
+  cat "$PART1" "$PART2" > "$OUT_PRED"
+  echo "[ok  ] predictions $T"
 done
 
 # ------------------------------------------------------------------
