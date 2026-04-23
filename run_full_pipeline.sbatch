@@ -10,6 +10,9 @@
 #SBATCH --mem=32G
 
 set -eo pipefail
+# If running sbatch inside srun
+# bash run_full_pipeline.sbatch 2>&1 | tee logs/pipeline_interactive.log
+
 
 # ------------------------------------------------------------------
 # 0. Environment

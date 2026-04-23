@@ -1,0 +1,34 @@
+{
+  "direct": {
+    "n": 1,
+    "goal_completion": 4.0,
+    "no_hallucination": 4.6667,
+    "step_ordering": 4.0,
+    "subgoal_coverage": 3.3333,
+    "overall_mean": 4.0
+  },
+  "hierarchical": {
+    "n": 1,
+    "goal_completion": 3.0,
+    "no_hallucination": 4.6667,
+    "step_ordering": 4.0,
+    "subgoal_coverage": 2.3333,
+    "overall_mean": 3.5
+  },
+  "inter_task_rag": {
+    "n": 1,
+    "goal_completion": 1.0,
+    "no_hallucination": 1.0,
+    "step_ordering": 1.0,
+    "subgoal_coverage": 1.0,
+    "overall_mean": 1.0
+  },
+  "intra_task_rag": {
+    "n": 1,
+    "goal_completion": 2.0,
+    "no_hallucination": 2.0,
+    "step_ordering": 1.6667,
+    "subgoal_coverage": 1.6667,
+    "overall_mean": 1.8333
+  }
+}

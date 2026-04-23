@@ -303,18 +303,3 @@ After the full pipeline completes, results are under `planning_outputs/rank0_all
 | `task_4053_368961_369296` | Hand a flyer to the customer five times using both arms |
 
 ---
-
-## Data Policy
-
-Do not commit AgiBot data, model weights, video clips, raw predictions, or planning outputs. The following paths are git-ignored:
-
-```
-AgiBotWorld2026/
-cosmos_agibot_planning/
-planning_outputs/
-hf_cache/
-hf-cache/
-uv-cache/
-```
-
-Large data and model caches live under `/projects/ipl_lab/jaramillocivill.m/`.

@@ -1,0 +1,5 @@
+episode_id,method,goal_completion,subgoal_coverage,step_ordering,object_grounding,no_hallucination,total,notes
+episode_000000,direct,,,,,,,
+episode_000000,hierarchical,,,,,,,
+episode_000000,intra_task_rag,,,,,,,
+episode_000000,inter_task_rag,,,,,,,

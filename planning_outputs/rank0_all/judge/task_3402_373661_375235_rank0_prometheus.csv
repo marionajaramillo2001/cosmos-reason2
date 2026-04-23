@@ -1,0 +1,5 @@
+episode_id,method,reference_len,generated_len,goal_completion_mean,no_hallucination_mean,step_ordering_mean,subgoal_coverage_mean,goal_completion_valid_runs,no_hallucination_valid_runs,step_ordering_valid_runs,subgoal_coverage_valid_runs,overall_mean
+episode_000000,direct,20,5,4.3333,5.0,4.0,3.6667,3,3,3,3,4.25
+episode_000000,hierarchical,20,12,4.0,5.0,4.6667,4.0,3,3,3,3,4.4167
+episode_000000,intra_task_rag,20,19,1.0,1.3333,1.3333,1.0,3,3,3,3,1.1667
+episode_000000,inter_task_rag,20,19,1.6667,1.3333,2.0,1.0,3,3,3,3,1.5

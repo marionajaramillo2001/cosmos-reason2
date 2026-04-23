@@ -1,0 +1,5 @@
+embedding_order_lcs,embedding_step_coverage,episode_id,generated_len,hallucinated_object_count,hallucinated_objects,method,object_f1,plan_length_bucket,plan_length_error,reference_len
+0.1429,0.3985,episode_000000,5,0,,direct,1.0,long,-9,14
+0.1429,0.4235,episode_000000,5,0,,hierarchical,1.0,long,-9,14
+0.5,0.9376,episode_000000,14,0,,intra_task_rag,1.0,long,0,14
+0.4286,0.8431,episode_000000,15,0,,inter_task_rag,1.0,long,1,14

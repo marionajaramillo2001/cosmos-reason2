@@ -1,0 +1,30 @@
+{
+  "direct": {
+    "n": 10,
+    "semantic_step_coverage": 0.19285999999999998,
+    "order_lcs": 0.11961,
+    "object_f1": 1.0,
+    "verb_f1": 0.33334
+  },
+  "hierarchical": {
+    "n": 10,
+    "semantic_step_coverage": 0.1792,
+    "order_lcs": 0.13711,
+    "object_f1": 1.0,
+    "verb_f1": 0.22857
+  },
+  "inter_task_rag": {
+    "n": 10,
+    "semantic_step_coverage": 0.44075,
+    "order_lcs": 0.25453000000000003,
+    "object_f1": 1.0,
+    "verb_f1": 0.36667
+  },
+  "intra_task_rag": {
+    "n": 10,
+    "semantic_step_coverage": 0.71688,
+    "order_lcs": 0.51729,
+    "object_f1": 1.0,
+    "verb_f1": 0.66667
+  }
+}
